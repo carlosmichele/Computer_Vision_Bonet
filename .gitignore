@@ -3,4 +3,4 @@ checkpoints/
 __pycache__/
 *.pth
 .vscode/
-logs/*
+experiments/*
