@@ -3,13 +3,14 @@ import json
 import random
 import numpy as np
 import pandas as pd
-from PIL import Image, ImageDraw
+from PIL import Image
 import torch
 import torchvision
 from torchvision import transforms as T
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torch.utils.data import Dataset, DataLoader
+from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 BASE = "/data01/giacomelli/data"
 ANN  = f"{BASE}/RHPE_Annotations"
@@ -18,7 +19,7 @@ SEED = 42
 random.seed(SEED)
 torch.manual_seed(SEED)
 
-# ── 1. Stratified Sampling ───────────────────────────────────────────────────
+# ── Stratified Sampling ───────────────────────────────────────────────────
 def stratified_sample(json_path, csv_path, n_samples, split_name):
     with open(json_path) as f:
         coco = json.load(f)
@@ -44,7 +45,7 @@ def stratified_sample(json_path, csv_path, n_samples, split_name):
     return sampled_ids, id_to_file, id_to_ann
 
 
-# ── 2. Dataset ───────────────────────────────────────────────────────────────
+# ── Dataset ───────────────────────────────────────────────────────────────
 class RHPEDetectionDataset(Dataset):
     def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann, transforms=None):
         self.image_dir = image_dir
@@ -81,7 +82,7 @@ class RHPEDetectionDataset(Dataset):
         return img, target
 
 
-# ── 3. Model ─────────────────────────────────────────────────────────────────
+# ── Model ─────────────────────────────────────────────────────────────────
 def get_model(num_classes=2):  # background + hand
     model = fasterrcnn_resnet50_fpn(weights="DEFAULT")
     in_features = model.roi_heads.box_predictor.cls_score.in_features
@@ -89,11 +90,11 @@ def get_model(num_classes=2):  # background + hand
     return model
 
 
-# ── 4. Transforms ────────────────────────────────────────────────────────────
+# ── Transforms ────────────────────────────────────────────────────────────
 transform = T.Compose([T.ToTensor()])
 
 
-# ── 5. Main ──────────────────────────────────────────────────────────────────
+# ── Main ──────────────────────────────────────────────────────────────────
 def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device}")
@@ -125,17 +126,21 @@ def main():
 
     # Training loop — 5000 iterations as in the paper
     total_iterations = 5000
-    batch_size = 4
     iters_per_epoch = len(train_loader)
     num_epochs = total_iterations // iters_per_epoch + 1
 
     print(f"Iterations per epoch: {iters_per_epoch}")
     print(f"Total epochs to reach ~5000 iterations: {num_epochs}")
 
+    save_path = "/data01/giacomelli/experiments/bbox_detection/checkpoints/fasterrcnn_rhpe.pth"
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
     iteration = 0
+    best_val_map = -1.0
+
     for epoch in range(num_epochs):
         model.train()
-        epoch_loss = 0
+        epoch_train_loss = 0
         for imgs, targets in train_loader:
             if iteration >= total_iterations:
                 break
@@ -150,47 +155,45 @@ def main():
             losses.backward()
             optimizer.step()
 
-            epoch_loss += losses.item()
+            epoch_train_loss += losses.item()
             iteration += 1
 
         if iteration >= total_iterations:
             break
 
-        print(f"Epoch {epoch+1} (iter {iteration}/{total_iterations}) — Loss: {epoch_loss/iters_per_epoch:.4f}")
+        model.eval()
+        metric = MeanAveragePrecision()
+        preds_list = []
+        targets_list = []
 
-    print(f"Training complete at iteration {iteration}")
+        with torch.no_grad():
+            for val_imgs, val_targets in val_loader:
+                val_imgs_gpu = [img.to(device) for img in val_imgs]
+                preds = model(val_imgs_gpu)
 
-    # Save model
-    save_path = "/data01/giacomelli/experiments/bbox_detection/checkpoints/fasterrcnn_rhpe.pth"
-    os.makedirs(os.path.dirname(save_path), exist_ok=True)
-    torch.save(model.state_dict(), save_path)
-    print(f"Model saved at {save_path}")
+                for pred, target in zip(preds, val_targets):
+                    preds_list.append({k: v.cpu() for k, v in pred.items()})
+                    targets_list.append({
+                        'boxes': target['boxes'],
+                        'labels': target['labels']
+                    })
 
-    # Visualize predictions on 3 val images
-    model.eval()
-    os.makedirs("/data01/giacomelli/experiments/bbox_detection/logs", exist_ok=True)
-    with torch.no_grad():
-        for i, (imgs, targets) in enumerate(val_loader):
-            if i >= 3:
-                break
-            img_tensor = imgs[0].to(device)
-            pred = model([img_tensor])[0]
+        metric.update(preds_list, targets_list)
+        val_results = metric.compute()
+        val_map_50 = val_results['map_50'].item()
+        val_map = val_results['map'].item()
 
-            img_pil = T.ToPILImage()(imgs[0])
-            draw = ImageDraw.Draw(img_pil)
+        avg_train_loss = epoch_train_loss / iters_per_epoch
+        print(f"Epoch {epoch+1} (iter {iteration}/{total_iterations}) ── "
+              f"Train Loss: {avg_train_loss:.4f} | Val mAP@.50: {val_map_50:.4f} | Val mAP@[.5:.95]: {val_map:.4f}")
 
-            # Predicted bbox (best scoring)
-            if len(pred['boxes']) > 0:
-                box = pred['boxes'][0].cpu().numpy()
-                draw.rectangle(box.tolist(), outline='red', width=4)
+        # Save checkpoint if validation mAP@.50 improves
+        if val_map_50 > best_val_map:
+            best_val_map = val_map_50
+            torch.save(model.state_dict(), save_path)
+            print(f"  => New best model saved to {save_path} with mAP@.50: {best_val_map:.4f}")
 
-            # Ground truth bbox
-            gt_box = targets[0]['boxes'][0].numpy()
-            draw.rectangle(gt_box.tolist(), outline='green', width=4)
-
-            out_path = f"/data01/giacomelli/experiments/bbox_detection/logs/val/val_{i+1}.png"
-            img_pil.save(out_path)
-            print(f"Saved visualization: {out_path}")
+    print(f"Training complete. Best Validation mAP@.50 achieved: {best_val_map:.4f}")
 
 
 if __name__ == '__main__':
