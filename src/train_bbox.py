@@ -99,6 +99,11 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device}")
 
+    np.random.seed(SEED)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(SEED)
+        torch.cuda.manual_seed_all(SEED)
+
     # Sampling
     train_ids, id_to_file_train, id_to_ann_train = stratified_sample(
         f"{ANN}/RHPE_anatomical_ROIs_train.json",
@@ -129,9 +134,6 @@ def main():
     iters_per_epoch = len(train_loader)
     num_epochs = total_iterations // iters_per_epoch + 1
 
-    print(f"Iterations per epoch: {iters_per_epoch}")
-    print(f"Total epochs to reach ~5000 iterations: {num_epochs}")
-
     save_path = "/data01/giacomelli/experiments/bbox_detection/checkpoints/fasterrcnn_rhpe.pth"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
@@ -141,6 +143,8 @@ def main():
     for epoch in range(num_epochs):
         model.train()
         epoch_train_loss = 0
+        train_batches = 0
+        
         for imgs, targets in train_loader:
             if iteration >= total_iterations:
                 break
@@ -157,9 +161,9 @@ def main():
 
             epoch_train_loss += losses.item()
             iteration += 1
+            train_batches += 1
 
-        if iteration >= total_iterations:
-            break
+        finished = iteration >= total_iterations
 
         model.eval()
         metric = MeanAveragePrecision()
@@ -183,18 +187,21 @@ def main():
         val_map_50 = val_results['map_50'].item()
         val_map = val_results['map'].item()
 
-        avg_train_loss = epoch_train_loss / iters_per_epoch
+        avg_train_loss = epoch_train_loss / train_batches if train_batches > 0 else 0
+        
         print(f"Epoch {epoch+1} (iter {iteration}/{total_iterations}) ── "
               f"Train Loss: {avg_train_loss:.4f} | Val mAP@.50: {val_map_50:.4f} | Val mAP@[.5:.95]: {val_map:.4f}")
 
-        # Save checkpoint if validation mAP@.50 improves
-        if val_map_50 > best_val_map:
-            best_val_map = val_map_50
+        if val_map > best_val_map:
+            best_val_map = val_map
             torch.save(model.state_dict(), save_path)
-            print(f"  => New best model saved to {save_path} with mAP@.50: {best_val_map:.4f}")
+            print(f"  => New best model saved to {save_path} with mAP@[.5:.95]: {best_val_map:.4f}")
 
-    print(f"Training complete. Best Validation mAP@.50 achieved: {best_val_map:.4f}")
+        if finished:
+            print("Target iterations reached.")
+            break
 
+    print(f"Training complete. Best Validation mAP@[.5:.95] achieved: {best_val_map:.4f}")
 
 if __name__ == '__main__':
     main()
