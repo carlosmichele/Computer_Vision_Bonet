@@ -73,14 +73,16 @@ def get_model(num_classes=2):
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
     return model
 
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', type=str, required=True, choices=['train', 'val', 'test'])
+    parser.add_argument('--visualize', action='store_true', help='Save sample plots with bounding boxes')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device} | Split: {args.split}")
+    print(f"Device: {device} | Split: {args.split} | Visualize: {args.visualize}")
 
     config  = SPLIT_CONFIG[args.split]
     dataset = RHPEDetectionDataset(
@@ -95,6 +97,58 @@ def main():
     model.load_state_dict(torch.load(CHECKPOINT, map_location=device, weights_only=True))
     model.eval()
     print("Model loaded successfully")
-    
+
+    metric      = MeanAveragePrecision()
+    preds_list  = []
+    targets_list = []
+
+    output_dir = f"/data01/giacomelli/experiments/bbox_detection/logs/{args.split}"
+    if args.visualize:
+        os.makedirs(output_dir, exist_ok=True)
+        from PIL import ImageDraw
+
+    with torch.no_grad():
+        for i, (imgs, targets) in enumerate(loader):
+            imgs_gpu = [img.to(device) for img in imgs]
+            preds    = model(imgs_gpu)
+
+            for j, (pred, target) in enumerate(zip(preds, targets)):
+                preds_list.append({
+                    'boxes':  pred['boxes'].cpu(),
+                    'scores': pred['scores'].cpu(),
+                    'labels': pred['labels'].cpu()
+                })
+                targets_list.append({
+                    'boxes':  target['boxes'],
+                    'labels': target['labels']
+                })
+
+                if args.visualize and (i * loader.batch_size + j) < 3:
+                    img_pil = T.ToPILImage()(imgs[j])
+                    draw = ImageDraw.Draw(img_pil)
+
+                    if len(pred['boxes']) > 0:
+                        box = pred['boxes'][0].cpu().numpy()
+                        draw.rectangle(box.tolist(), outline='red', width=4)
+
+                    gt_box = target['boxes'][0].numpy()
+                    draw.rectangle(gt_box.tolist(), outline='green', width=4)
+
+                    global_idx = i * loader.batch_size + j
+                    out_path = f"{output_dir}/sample_{global_idx + 1}.png"
+                    img_pil.save(out_path)
+                    print(f"  [Visualization] Saved sample image to: {out_path}")
+
+            if i % 50 == 0:
+                print(f"  Processed {i * loader.batch_size}/{len(dataset)} images...")
+
+    metric.update(preds_list, targets_list)
+    results = metric.compute()
+
+    print(f"\n=== Results — {args.split.upper()} ===")
+    print(f"mAP@[.5:.95]: {results['map'].item():.4f}")
+    print(f"mAP@.50:      {results['map_50'].item():.4f}")
+    print(f"mAP@.75:      {results['map_75'].item():.4f}")
+
 if __name__ == '__main__':
     main()
