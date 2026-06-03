@@ -65,3 +65,36 @@ class RHPEDetectionDataset(Dataset):
             img = self.transforms(img)
 
         return img, target
+    
+# ── Model ────────────────────────────────────────────────────────────────────
+def get_model(num_classes=2):
+    model = fasterrcnn_resnet50_fpn(weights=None)
+    in_features = model.roi_heads.box_predictor.cls_score.in_features
+    model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+    return model
+
+# ── Main ─────────────────────────────────────────────────────────────────────
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--split', type=str, required=True, choices=['train', 'val', 'test'])
+    args = parser.parse_args()
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Device: {device} | Split: {args.split}")
+
+    config  = SPLIT_CONFIG[args.split]
+    dataset = RHPEDetectionDataset(
+        config['image_dir'], config['json_path'],
+        transforms=T.Compose([T.ToTensor()]))
+
+    loader = DataLoader(dataset, batch_size=4, shuffle=False,
+                        collate_fn=lambda x: tuple(zip(*x)),
+                        num_workers=4)
+
+    model = get_model().to(device)
+    model.load_state_dict(torch.load(CHECKPOINT, map_location=device, weights_only=True))
+    model.eval()
+    print("Model loaded successfully")
+    
+if __name__ == '__main__':
+    main()
