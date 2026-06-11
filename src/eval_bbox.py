@@ -149,6 +149,7 @@ def main():
     print(f"mAP@[.5:.95]: {results['map'].item():.4f}")
     print(f"mAP@.50:      {results['map_50'].item():.4f}")
     print(f"mAP@.75:      {results['map_75'].item():.4f}")
+    print(f"mAR@[.5:.95]: {results['mar_100'].item():.4f}")
 
 if __name__ == '__main__':
     main()
