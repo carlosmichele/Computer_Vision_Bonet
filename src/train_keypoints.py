@@ -161,7 +161,7 @@ def main():
 
         # Validation
         model.eval()
-        metric       = MeanAveragePrecision(iou_type='keypoints', num_keypoints=NUM_KEYPOINTS)
+        metric       = MeanAveragePrecision()
         preds_list   = []
         targets_list = []
 
@@ -172,15 +172,13 @@ def main():
 
                 for pred, target in zip(preds, val_targets):
                     preds_list.append({
-                        'boxes':     pred['boxes'].cpu(),
-                        'scores':    pred['scores'].cpu(),
-                        'labels':    pred['labels'].cpu(),
-                        'keypoints': pred['keypoints'].cpu(),
+                        'boxes':  pred['boxes'].cpu(),
+                        'scores': pred['scores'].cpu(),
+                        'labels': pred['labels'].cpu(),
                     })
                     targets_list.append({
-                        'boxes':     target['boxes'],
-                        'labels':    target['labels'],
-                        'keypoints': target['keypoints'],
+                        'boxes':  target['boxes'],
+                        'labels': target['labels'],
                     })
 
         metric.update(preds_list, targets_list)
