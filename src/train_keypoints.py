@@ -45,3 +45,40 @@ def stratified_sample(json_path, csv_path, n_samples, split_name):
     print(f"{split_name}: {len(sampled_ids)} images sampled")
     return sampled_ids, id_to_file, id_to_ann
 
+class RHPEKeypointDataset(Dataset):
+    def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann, transforms=None):
+        self.image_dir = image_dir
+        self.transforms = transforms
+        self.samples = []
+
+        for img_id in sampled_ids:
+            for coco_id, fname in id_to_file.items():
+                file_id = int(os.path.splitext(fname)[0])
+                if file_id == img_id and coco_id in id_to_ann:
+                    self.samples.append((fname, id_to_ann[coco_id]))
+                    break
+
+        print(f"Dataset: {len(self.samples)} valid samples")
+
+    def __getitem__(self, idx):
+        fname, ann = self.samples[idx]
+        img = Image.open(os.path.join(self.image_dir, fname)).convert("RGB")
+
+        x, y, w, h = ann['bbox']
+        boxes  = torch.tensor([[x, y, x + w, y + h]], dtype=torch.float32)
+        labels = torch.ones((1,), dtype=torch.int64)
+
+        kps       = ann['keypoints']
+        keypoints = torch.tensor(kps, dtype=torch.float32).reshape(1, NUM_KEYPOINTS, 3)
+
+        target = {
+            'boxes':     boxes,
+            'labels':    labels,
+            'keypoints': keypoints,  
+            'image_id':  torch.tensor([idx])
+        }
+
+        if self.transforms:
+            img = self.transforms(img)
+
+        return img, target
