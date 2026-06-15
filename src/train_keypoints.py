@@ -82,3 +82,11 @@ class RHPEKeypointDataset(Dataset):
             img = self.transforms(img)
 
         return img, target
+    
+    def get_model(num_keypoints=NUM_KEYPOINTS):
+        model       = keypointrcnn_resnet50_fpn(weights="DEFAULT")
+        in_features = model.roi_heads.keypoint_predictor.kps_score_lowres.in_channels
+        model.roi_heads.keypoint_predictor = KeypointRCNNPredictor(in_features, num_keypoints)
+        return model
+    
+    
