@@ -89,4 +89,32 @@ class RHPEKeypointDataset(Dataset):
         model.roi_heads.keypoint_predictor = KeypointRCNNPredictor(in_features, num_keypoints)
         return model
     
+    def main():
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f"Device: {device}")
+
+        np.random.seed(SEED)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(SEED)
+            torch.cuda.manual_seed_all(SEED)
+
+        train_ids, id_to_file_train, id_to_ann_train = stratified_sample(
+            f"{ANN}/RHPE_anatomical_ROIs_train.json",
+            f"{ANN}/RHPE_Boneage_train.csv", 250, "TRAIN")
+
+        val_ids, id_to_file_val, id_to_ann_val = stratified_sample(
+            f"{ANN}/RHPE_anatomical_ROIs_val.json",
+            f"{ANN}/RHPE_Boneage_val.csv", 50, "VAL")
+
+        train_dataset = RHPEKeypointDataset(
+            f"{BASE}/RHPE_train", train_ids, id_to_file_train, id_to_ann_train, transform)
+        val_dataset = RHPEKeypointDataset(
+            f"{BASE}/RHPE_val", val_ids, id_to_file_val, id_to_ann_val, transform)
+
+        train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True,
+                                collate_fn=lambda x: tuple(zip(*x)))
+        val_loader   = DataLoader(val_dataset, batch_size=1, shuffle=False,
+                                collate_fn=lambda x: tuple(zip(*x)))
     
+    if __name__ == '__main__':
+        main()
