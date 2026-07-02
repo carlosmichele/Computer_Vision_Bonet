@@ -1,6 +1,7 @@
 import os
 import json
 import random
+import argparse
 import numpy as np
 import pandas as pd
 from PIL import Image
@@ -47,9 +48,18 @@ def stratified_sample(json_path, csv_path, n_samples, split_name):
 
 # ── Dataset ───────────────────────────────────────────────────────────────
 class RHPEKeypointDataset(Dataset):
-    def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann, transforms=None):
+    """
+    mode='full':    the whole image is used as input; the bbox in the
+                     target keeps its original (full-image) coordinates.
+    mode='gt_crop':  the image is cropped to the ground truth bbox before
+                     being fed to the model; bbox and keypoints are
+                     shifted to crop-local coordinates.
+    """
+    def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann,
+                 mode='full', transforms=None):
         self.image_dir  = image_dir
         self.transforms = transforms
+        self.mode       = mode
         self.samples    = []
 
         for img_id in sampled_ids:
@@ -59,7 +69,7 @@ class RHPEKeypointDataset(Dataset):
                     self.samples.append((fname, id_to_ann[coco_id]))
                     break
 
-        print(f"Dataset: {len(self.samples)} valid samples")
+        print(f"Dataset: {len(self.samples)} valid samples (mode={mode})")
 
     def __len__(self):
         return len(self.samples)
@@ -69,19 +79,18 @@ class RHPEKeypointDataset(Dataset):
         img = Image.open(os.path.join(self.image_dir, fname)).convert("RGB")
 
         x, y, w, h = ann['bbox']
-
-        # Crop image using ground truth bbox
-        img = img.crop((x, y, x + w, y + h))
-
-        # Bbox in crop coordinates: the whole crop
-        boxes  = torch.tensor([[0., 0., float(w), float(h)]], dtype=torch.float32)
-        labels = torch.ones((1,), dtype=torch.int64)
-
-        # Keypoints: adjust to crop coordinates by subtracting bbox offset
         kps       = ann['keypoints']
         keypoints = torch.tensor(kps, dtype=torch.float32).reshape(1, NUM_KEYPOINTS, 3)
-        keypoints[0, :, 0] -= x
-        keypoints[0, :, 1] -= y
+
+        if self.mode == 'gt_crop':
+            img = img.crop((x, y, x + w, y + h))
+            boxes = torch.tensor([[0., 0., float(w), float(h)]], dtype=torch.float32)
+            keypoints[0, :, 0] -= x
+            keypoints[0, :, 1] -= y
+        else:  # mode == 'full'
+            boxes = torch.tensor([[x, y, x + w, y + h]], dtype=torch.float32)
+
+        labels = torch.ones((1,), dtype=torch.int64)
 
         target = {
             'boxes':     boxes,
@@ -107,8 +116,14 @@ transform = T.Compose([T.ToTensor()])
 
 # ── Main ──────────────────────────────────────────────────────────────────
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--mode', type=str, default='full',
+                        choices=['full', 'gt_crop'],
+                        help='full: whole image | gt_crop: crop with gt bbox')
+    args = parser.parse_args()
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device}")
+    print(f"Device: {device} | Mode: {args.mode}")
 
     np.random.seed(SEED)
     if torch.cuda.is_available():
@@ -126,9 +141,11 @@ def main():
 
     # Datasets and DataLoaders
     train_dataset = RHPEKeypointDataset(
-        f"{BASE}/RHPE_train", train_ids, id_to_file_train, id_to_ann_train, transform)
+        f"{BASE}/RHPE_train", train_ids, id_to_file_train, id_to_ann_train,
+        mode=args.mode, transforms=transform)
     val_dataset = RHPEKeypointDataset(
-        f"{BASE}/RHPE_val", val_ids, id_to_file_val, id_to_ann_val, transform)
+        f"{BASE}/RHPE_val", val_ids, id_to_file_val, id_to_ann_val,
+        mode=args.mode, transforms=transform)
 
     train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True,
                               collate_fn=lambda x: tuple(zip(*x)))
@@ -143,7 +160,7 @@ def main():
     # as indicated in the BoNet paper for keypoint estimation:
     num_epochs = 20
 
-    save_path = "/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe.pth"
+    save_path = f"/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe_{args.mode}.pth"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     best_val_map = -1.0
@@ -202,7 +219,7 @@ def main():
         if val_map > best_val_map:
             best_val_map = val_map
             torch.save(model.state_dict(), save_path)
-            print(f"  => New best model saved with mAP@[.5:.95]: {best_val_map:.4f}")
+            print(f"  => New best model saved to {save_path} with mAP@[.5:.95]: {best_val_map:.4f}")
 
     print(f"Training complete. Best Validation mAP@[.5:.95] achieved: {best_val_map:.4f}")
 
