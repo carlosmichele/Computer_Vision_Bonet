@@ -14,8 +14,8 @@ from pycocotools.cocoeval import COCOeval
 
 BASE           = "/data01/giacomelli/data"
 ANN            = f"{BASE}/RHPE_Annotations"
-KPT_CHECKPOINT = "/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe.pth"
-DET_CHECKPOINT = "/data01/giacomelli/experiments/bbox_detection/checkpoints/fasterrcnn_rhpe.pth"
+KPT_CHECKPOINT_DIR = "/data01/giacomelli/experiments/keypoints/checkpoints"
+DET_CHECKPOINT      = "/data01/giacomelli/experiments/bbox_detection/checkpoints/fasterrcnn_rhpe.pth"
 
 NUM_KEYPOINTS = 17
 CATEGORY_ID   = 1
@@ -90,6 +90,8 @@ def get_det_model(num_classes=2):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', type=str, required=True, choices=['train', 'val', 'test'])
+    parser.add_argument('--model', type=str, required=True, choices=['full', 'gt_crop'],
+                        help='which trained checkpoint to load (keypointrcnn_rhpe_<model>.pth)')
     parser.add_argument('--mode',  type=str, default='full',
                         choices=['full', 'gt_crop', 'det_crop'],
                         help='full: whole image | gt_crop: crop with gt bbox | det_crop: crop with predicted bbox')
@@ -97,16 +99,17 @@ def main():
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device} | Split: {args.split} | Mode: {args.mode} | Visualize: {args.visualize}")
+    print(f"Device: {device} | Split: {args.split} | Model: {args.model} | Mode: {args.mode} | Visualize: {args.visualize}")
 
     config  = SPLIT_CONFIG[args.split]
     dataset = RHPEKeypointEvalDataset(config['image_dir'], config['json_path'])
 
-    # Load keypoint model
+    # Load keypoint model — checkpoint depends on how it was trained (--model)
+    kpt_checkpoint = f"{KPT_CHECKPOINT_DIR}/keypointrcnn_rhpe_{args.model}.pth"
     kpt_model = get_kpt_model().to(device)
-    kpt_model.load_state_dict(torch.load(KPT_CHECKPOINT, map_location=device, weights_only=True))
+    kpt_model.load_state_dict(torch.load(kpt_checkpoint, map_location=device, weights_only=True))
     kpt_model.eval()
-    print("Keypoint model loaded successfully")
+    print(f"Keypoint model loaded from {kpt_checkpoint}")
 
     # Load detection model if needed for det_crop
     det_model = None
@@ -116,7 +119,7 @@ def main():
         det_model.eval()
         print("Detection model loaded successfully")
 
-    output_dir = f"/data01/giacomelli/experiments/keypoints/logs/{args.split}/{args.mode}"
+    output_dir = f"/data01/giacomelli/experiments/keypoints/logs/{args.split}/model_{args.model}_mode_{args.mode}"
     os.makedirs(output_dir, exist_ok=True)
 
     to_tensor   = T.ToTensor()
@@ -142,7 +145,6 @@ def main():
                 det_pred   = det_model([img_tensor])[0]
 
                 if len(det_pred['boxes']) == 0:
-                    # No detection: counts as a miss
                     continue
 
                 x1, y1, x2, y2 = det_pred['boxes'][0].cpu().numpy()
@@ -152,11 +154,9 @@ def main():
                 offset     = (x1, y1)
 
             if len(pred['scores']) == 0:
-                # Keypoint model found nothing: counts as a miss
                 continue
 
-            # Take top-scoring instance, shift keypoints back to original coordinates
-            kpts  = pred['keypoints'][0].cpu().numpy()  # (17, 3)
+            kpts  = pred['keypoints'][0].cpu().numpy()
             kpts[:, 0] += offset[0]
             kpts[:, 1] += offset[1]
             score = float(pred['scores'][0].cpu())
@@ -175,11 +175,9 @@ def main():
             if args.visualize and i < 3:
                 draw = ImageDraw.Draw(img_pil)
 
-                # Predicted keypoints in red (already in original coords)
                 for (x, y, _v) in kpts:
                     draw.ellipse([x - 5, y - 5, x + 5, y + 5], outline='red', width=3)
 
-                # Ground truth keypoints in green
                 gt_kpts = dataset.id_to_ann[coco_id]['keypoints']
                 for k in range(NUM_KEYPOINTS):
                     gx, gy, gv = gt_kpts[3*k], gt_kpts[3*k+1], gt_kpts[3*k+2]
@@ -194,7 +192,7 @@ def main():
                 print(f"  Processed {i}/{len(dataset)} images...")
 
     # ── Save predictions and run COCOeval ────────────────────────────────────
-    pred_path = f"{output_dir}/{args.split}_{args.mode}_predictions.json"
+    pred_path = f"{output_dir}/{args.split}_predictions.json"
     with open(pred_path, 'w') as f:
         json.dump(predictions, f)
 
@@ -208,7 +206,7 @@ def main():
     cocoEval.summarize()
 
     stats = cocoEval.stats
-    print(f"\n=== Results — {args.split.upper()} | Mode: {args.mode} ===")
+    print(f"\n=== Results — {args.split.upper()} | Model: {args.model} | Mode: {args.mode} ===")
     print(f"mAP@[.5:.95]: {stats[0]:.4f}")
     print(f"mAP@.50:      {stats[1]:.4f}")
     print(f"mAP@.75:      {stats[2]:.4f}")
