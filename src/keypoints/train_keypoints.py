@@ -69,16 +69,24 @@ class RHPEKeypointDataset(Dataset):
         img = Image.open(os.path.join(self.image_dir, fname)).convert("RGB")
 
         x, y, w, h = ann['bbox']
-        boxes  = torch.tensor([[x, y, x + w, y + h]], dtype=torch.float32)
+
+        # Crop image using ground truth bbox
+        img = img.crop((x, y, x + w, y + h))
+
+        # Bbox in crop coordinates: the whole crop
+        boxes  = torch.tensor([[0., 0., float(w), float(h)]], dtype=torch.float32)
         labels = torch.ones((1,), dtype=torch.int64)
 
+        # Keypoints: adjust to crop coordinates by subtracting bbox offset
         kps       = ann['keypoints']
         keypoints = torch.tensor(kps, dtype=torch.float32).reshape(1, NUM_KEYPOINTS, 3)
+        keypoints[0, :, 0] -= x
+        keypoints[0, :, 1] -= y
 
         target = {
             'boxes':     boxes,
             'labels':    labels,
-            'keypoints': keypoints,  
+            'keypoints': keypoints,
             'image_id':  torch.tensor([idx])
         }
 
@@ -159,7 +167,7 @@ def main():
 
         avg_train_loss = epoch_train_loss / len(train_loader)
 
-        # Validation
+        # Validation — mAP on bbox as proxy for best model selection
         model.eval()
         metric       = MeanAveragePrecision()
         preds_list   = []
