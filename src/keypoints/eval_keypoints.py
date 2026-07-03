@@ -212,6 +212,22 @@ def main():
     print(f"mAP@.75:      {stats[2]:.4f}")
     print(f"mAR@[.5:.95]: {stats[5]:.4f}")
 
+    # Save metrics to json for later reference (avoids re-running to recover results)
+    metrics = {
+        "split":         args.split,
+        "model":         args.model,
+        "mode":          args.mode,
+        "kpt_oks_sigma": KPT_OKS_SIGMA,
+        "map_50_95":     round(float(stats[0]), 4),
+        "map_50":        round(float(stats[1]), 4),
+        "map_75":        round(float(stats[2]), 4),
+        "mar_50_95":     round(float(stats[5]), 4),
+    }
+    metrics_path = f"{output_dir}/metrics.json"
+    with open(metrics_path, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    print(f"Metrics saved to {metrics_path}")
+
 
 if __name__ == '__main__':
     main()
