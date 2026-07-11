@@ -4,7 +4,7 @@ import random
 import argparse
 import numpy as np
 import pandas as pd
-from PIL import Image
+from PIL import Image, ImageOps
 import torch
 from torchvision import transforms as T
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
@@ -49,25 +49,40 @@ def stratified_sample(json_path, csv_path, n_samples, split_name):
 # ── Dataset ───────────────────────────────────────────────────────────────
 class RHPEKeypointDataset(Dataset):
     """
-    mode='full':    the whole image is used as input; the bbox in the
-                     target keeps its original (full-image) coordinates.
-    mode='gt_crop':  the image is cropped to the ground truth bbox before
-                     being fed to the model; bbox and keypoints are
-                     shifted to crop-local coordinates.
+    mode='full':     the whole image is used as input; the bbox in the
+                      target keeps its original (full-image) coordinates.
+    mode='gt_crop':   the image is cropped to the ground truth bbox before
+                      being fed to the model; bbox and keypoints are
+                      shifted to crop-local coordinates.
+    mode='mirrored':  same as 'gt_crop', but the dataset is doubled: for
+                      every sample, a horizontally flipped version is also
+                      added (synthetic right hand, with keypoints mirrored
+                      accordingly). Ground truth keypoints only exist for
+                      the left hand in RHPE, so mirroring is the only way
+                      to obtain training data for the right hand.
     """
     def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann,
                  mode='full', transforms=None):
         self.image_dir  = image_dir
         self.transforms = transforms
         self.mode       = mode
-        self.samples    = []
+        self.samples    = []  # list of (fname, ann, flip: bool)
 
+        base_samples = []
         for img_id in sampled_ids:
             for coco_id, fname in id_to_file.items():
                 file_id = int(os.path.splitext(fname)[0])
                 if file_id == img_id and coco_id in id_to_ann:
-                    self.samples.append((fname, id_to_ann[coco_id]))
+                    base_samples.append((fname, id_to_ann[coco_id]))
                     break
+
+        if mode == 'mirrored':
+            for fname, ann in base_samples:
+                self.samples.append((fname, ann, False))  # original left hand
+                self.samples.append((fname, ann, True))   # mirrored synthetic right hand
+        else:
+            for fname, ann in base_samples:
+                self.samples.append((fname, ann, False))
 
         print(f"Dataset: {len(self.samples)} valid samples (mode={mode})")
 
@@ -75,18 +90,23 @@ class RHPEKeypointDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        fname, ann = self.samples[idx]
+        fname, ann, flip = self.samples[idx]
         img = Image.open(os.path.join(self.image_dir, fname)).convert("RGB")
 
         x, y, w, h = ann['bbox']
         kps       = ann['keypoints']
         keypoints = torch.tensor(kps, dtype=torch.float32).reshape(1, NUM_KEYPOINTS, 3)
 
-        if self.mode == 'gt_crop':
+        if self.mode in ('gt_crop', 'mirrored'):
             img = img.crop((x, y, x + w, y + h))
             boxes = torch.tensor([[0., 0., float(w), float(h)]], dtype=torch.float32)
             keypoints[0, :, 0] -= x
             keypoints[0, :, 1] -= y
+
+            if flip:
+                img = ImageOps.mirror(img)
+                # Mirror x-coordinates within the crop width
+                keypoints[0, :, 0] = float(w) - keypoints[0, :, 0]
         else:  # mode == 'full'
             boxes = torch.tensor([[x, y, x + w, y + h]], dtype=torch.float32)
 
@@ -118,8 +138,9 @@ transform = T.Compose([T.ToTensor()])
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default='full',
-                        choices=['full', 'gt_crop'],
-                        help='full: whole image | gt_crop: crop with gt bbox')
+                        choices=['full', 'gt_crop', 'mirrored'],
+                        help='full: whole image | gt_crop: crop with gt bbox | '
+                             'mirrored: crop with gt bbox + mirrored synthetic right hand')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -157,7 +178,7 @@ def main():
     optimizer = torch.optim.SGD(model.parameters(), lr=0.005,
                                 momentum=0.9, weight_decay=0.0005)
 
-    # as indicated in the BoNet paper for keypoint estimation:
+    # 20 epochs as indicated in the BoNet paper for keypoint estimation
     num_epochs = 20
 
     save_path = f"/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe_{args.mode}.pth"
@@ -221,7 +242,7 @@ def main():
             torch.save(model.state_dict(), save_path)
             print(f"  => New best model saved to {save_path} with mAP@[.5:.95]: {best_val_map:.4f}")
 
-    print(f"Training complete. Best Validation mAP@[.5:.95] achieved: {best_val_map:.4f}")
+    print(f"Training complete. Best Validation mAP@[.5:.95]: {best_val_map:.4f}")
 
 
 if __name__ == '__main__':
