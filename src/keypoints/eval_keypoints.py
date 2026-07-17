@@ -90,7 +90,7 @@ def get_det_model(num_classes=2):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', type=str, required=True, choices=['train', 'val', 'test'])
-    parser.add_argument('--model', type=str, required=True, choices=['full', 'gt_crop'],
+    parser.add_argument('--model', type=str, required=True, choices=['full', 'gt_crop', 'mirrored'],
                         help='which trained checkpoint to load (keypointrcnn_rhpe_<model>.pth)')
     parser.add_argument('--mode',  type=str, default='full',
                         choices=['full', 'gt_crop', 'det_crop'],

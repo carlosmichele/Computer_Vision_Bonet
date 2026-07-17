@@ -60,6 +60,14 @@ class RHPEKeypointDataset(Dataset):
                       accordingly). Ground truth keypoints only exist for
                       the left hand in RHPE, so mirroring is the only way
                       to obtain training data for the right hand.
+    mode='mirrored_full': same idea as 'mirrored', but applied to the whole
+                      image instead of the crop. For every sample, a
+                      horizontally flipped version of the FULL image is
+                      added, with bbox and keypoints mirrored using the
+                      full image width. This lets the detection component
+                      learn to localize a hand (left or right orientation)
+                      within a wider context (background/other structures),
+                      unlike 'mirrored' which only ever sees tight crops.
     """
     def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann,
                  mode='full', transforms=None):
@@ -76,7 +84,7 @@ class RHPEKeypointDataset(Dataset):
                     base_samples.append((fname, id_to_ann[coco_id]))
                     break
 
-        if mode == 'mirrored':
+        if mode in ('mirrored', 'mirrored_full'):
             for fname, ann in base_samples:
                 self.samples.append((fname, ann, False))  # original left hand
                 self.samples.append((fname, ann, True))   # mirrored synthetic right hand
@@ -107,6 +115,18 @@ class RHPEKeypointDataset(Dataset):
                 img = ImageOps.mirror(img)
                 # Mirror x-coordinates within the crop width
                 keypoints[0, :, 0] = float(w) - keypoints[0, :, 0]
+
+        elif self.mode == 'mirrored_full':
+            img_width, _img_height = img.size
+            boxes = torch.tensor([[x, y, x + w, y + h]], dtype=torch.float32)
+
+            if flip:
+                img = ImageOps.mirror(img)
+                # Mirror x-coordinates using the FULL image width, not the crop width
+                boxes[0, 0] = float(img_width) - (x + w)
+                boxes[0, 2] = float(img_width) - x
+                keypoints[0, :, 0] = float(img_width) - keypoints[0, :, 0]
+
         else:  # mode == 'full'
             boxes = torch.tensor([[x, y, x + w, y + h]], dtype=torch.float32)
 
@@ -138,9 +158,10 @@ transform = T.Compose([T.ToTensor()])
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type=str, default='full',
-                        choices=['full', 'gt_crop', 'mirrored'],
+                        choices=['full', 'gt_crop', 'mirrored', 'mirrored_full'],
                         help='full: whole image | gt_crop: crop with gt bbox | '
-                             'mirrored: crop with gt bbox + mirrored synthetic right hand')
+                             'mirrored: crop with gt bbox + mirrored synthetic right hand | '
+                             'mirrored_full: whole image + mirrored whole image (right hand)')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
