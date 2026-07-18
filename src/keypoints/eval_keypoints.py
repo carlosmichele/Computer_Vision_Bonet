@@ -90,7 +90,8 @@ def get_det_model(num_classes=2):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--split', type=str, required=True, choices=['train', 'val', 'test'])
-    parser.add_argument('--model', type=str, required=True, choices=['full', 'gt_crop', 'mirrored'],
+    parser.add_argument('--model', type=str, required=True,
+                        choices=['full', 'gt_crop', 'mirrored', 'mirrored_full'],
                         help='which trained checkpoint to load (keypointrcnn_rhpe_<model>.pth)')
     parser.add_argument('--mode',  type=str, default='full',
                         choices=['full', 'gt_crop', 'det_crop'],
@@ -156,10 +157,21 @@ def main():
             if len(pred['scores']) == 0:
                 continue
 
-            kpts  = pred['keypoints'][0].cpu().numpy()
+            # In 'full' mode the model may detect both hands (mirrored_full
+            # was trained on both orientations); we always want the left
+            # hand here, since that's what the ground truth annotates.
+            # Pick the detection whose box is leftmost (smallest x1),
+            # instead of always taking the top-scoring one.
+            if args.mode == 'full' and len(pred['boxes']) > 1:
+                x1_coords = pred['boxes'][:, 0].cpu().numpy()
+                best_idx  = int(x1_coords.argmin())
+            else:
+                best_idx = 0
+
+            kpts  = pred['keypoints'][best_idx].cpu().numpy()
             kpts[:, 0] += offset[0]
             kpts[:, 1] += offset[1]
-            score = float(pred['scores'][0].cpu())
+            score = float(pred['scores'][best_idx].cpu())
 
             flat_kpts = []
             for (x, y, _v) in kpts:
@@ -211,22 +223,6 @@ def main():
     print(f"mAP@.50:      {stats[1]:.4f}")
     print(f"mAP@.75:      {stats[2]:.4f}")
     print(f"mAR@[.5:.95]: {stats[5]:.4f}")
-
-    # Save metrics to json for later reference (avoids re-running to recover results)
-    metrics = {
-        "split":         args.split,
-        "model":         args.model,
-        "mode":          args.mode,
-        "kpt_oks_sigma": KPT_OKS_SIGMA,
-        "map_50_95":     round(float(stats[0]), 4),
-        "map_50":        round(float(stats[1]), 4),
-        "map_75":        round(float(stats[2]), 4),
-        "mar_50_95":     round(float(stats[5]), 4),
-    }
-    metrics_path = f"{output_dir}/metrics.json"
-    with open(metrics_path, 'w') as f:
-        json.dump(metrics, f, indent=2)
-    print(f"Metrics saved to {metrics_path}")
 
 
 if __name__ == '__main__':
