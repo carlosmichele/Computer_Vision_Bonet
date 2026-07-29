@@ -19,12 +19,23 @@ DET_CHECKPOINT      = "/data01/giacomelli/experiments/bbox_detection/checkpoints
 
 NUM_KEYPOINTS = 17
 CATEGORY_ID   = 1
-# Uniform OKS sigma for all 17 keypoints.
-# COCO's official sigmas (calibrated on human body keypoints) range
-# roughly from 0.025 (eyes) to 0.107 (hips) — no equivalent values
-# exist for hand anatomical keypoints, so we use a single mid-range
-# value as a documented simplification.
-KPT_OKS_SIGMA = 0.05
+
+# Per-keypoint OKS sigmas as reported in the BoNet supplementary material
+# (Escobar et al., MICCAI 2019), computed from the variance across
+# different trained annotators labeling the same image. Order assumed to
+# match the RHPE keypoint annotation order: f1_0, f1_1, f1_2 (finger 1),
+# f2_0-2, f3_0-2, f4_0-2, f5_0-2 (fingers 2-5), anchor_0, anchor_1.
+# These are roughly an order of magnitude stricter than COCO's standard
+# human-body sigmas (0.025-0.107), reflecting how precisely each hand
+# landmark can be localized.
+KPT_OKS_SIGMAS = np.array([
+    0.0110, 0.0107, 0.0090,   # f1
+    0.0076, 0.0074, 0.0071,   # f2
+    0.0039, 0.0039, 0.0040,   # f3
+    0.0070, 0.0071, 0.0071,   # f4
+    0.0120, 0.0120, 0.0120,   # f5
+    0.0090, 0.0080,           # anchor
+])
 
 SPLIT_CONFIG = {
     "train": {
@@ -211,7 +222,7 @@ def main():
     cocoGt   = COCO(config['json_path'])
     cocoDt   = cocoGt.loadRes(pred_path)
     cocoEval = COCOeval(cocoGt, cocoDt, iouType='keypoints')
-    cocoEval.params.kpt_oks_sigmas = np.full(NUM_KEYPOINTS, KPT_OKS_SIGMA)
+    cocoEval.params.kpt_oks_sigmas = KPT_OKS_SIGMAS
     cocoEval.params.imgIds = sorted(cocoGt.getImgIds())
     cocoEval.evaluate()
     cocoEval.accumulate()
@@ -223,6 +234,29 @@ def main():
     print(f"mAP@.50:      {stats[1]:.4f}")
     print(f"mAP@.75:      {stats[2]:.4f}")
     print(f"mAR@[.5:.95]: {stats[5]:.4f}")
+
+    all_metrics_path = "/data01/giacomelli/experiments/keypoints/logs/all_metrics.json"
+    key = f"{args.split}_{args.model}_{args.mode}"
+
+    if os.path.exists(all_metrics_path):
+        with open(all_metrics_path) as f:
+            all_metrics = json.load(f)
+    else:
+        all_metrics = {}
+
+    all_metrics[key] = {
+        "split":         args.split,
+        "model":         args.model,
+        "mode":          args.mode,
+        "map_50_95":     round(float(stats[0]), 4),
+        "map_50":        round(float(stats[1]), 4),
+        "map_75":        round(float(stats[2]), 4),
+        "mar_50_95":     round(float(stats[5]), 4),
+    }
+
+    with open(all_metrics_path, 'w') as f:
+        json.dump(all_metrics, f, indent=2)
+    print(f"Metrics saved to {all_metrics_path} (key: {key})")
 
 
 if __name__ == '__main__':
