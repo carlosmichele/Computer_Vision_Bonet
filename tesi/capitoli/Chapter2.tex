@@ -1,0 +1,212 @@
+\chapter{Materiali e metodi}
+\label{chap:materiali_metodi}
+
+\section{Dataset RHPE}
+\label{sec:dataset}
+
+Il dataset RHPE (Radiological Hand Pose Estimation) è composto da radiografie
+della mano di pazienti pediatrici, suddivise nei tre split standard di
+training, validation e test. Le annotazioni sono fornite in due formati:
+
+\begin{itemize}
+    \item \textbf{JSON (formato COCO):} bounding box della mano e 17
+    keypoint anatomici codificati come triplette $(x, y, v)$, dove $v$
+    rappresenta il flag di visibilità;
+    \item \textbf{CSV:} età ossea (\emph{bone age}), età cronologica e
+    genere per ogni paziente.
+\end{itemize}
+
+Il test set non include l'età ossea, poiché è il valore che il sistema deve
+predire.
+
+\subsection{Analisi esplorativa}
+\label{sec:eda}
+
+% TODO: inserire tabelle riassuntive da diario (distribuzione per split,
+% statistiche età, dimensioni immagini) e Figura con distribuzione età
+
+\begin{table}[h]
+\centering
+\caption{Distribuzione del dataset RHPE per split.}
+\label{tab:dataset_split}
+\begin{tabular}{lccc}
+\toprule
+Split & Immagini & Maschi & Femmine \\
+\midrule
+Train & 5491 & 2372 (43.2\%) & 3119 (56.8\%) \\
+Val   & 713  & 306 (42.9\%)  & 407 (57.1\%)  \\
+Test  & 79   & 38 (48.1\%)   & 41 (51.9\%)   \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% TODO: figura distribuzione_eta.png
+
+\section{Hand Detection}
+\label{sec:hand_detection}
+
+Il primo stadio del pipeline consiste nel localizzare automaticamente la
+mano nell'immagine tramite bounding box. Seguendo il paper BoNet, il
+modello scelto è Faster R-CNN con backbone ResNet-50 FPN, pre-addestrato su
+ImageNet. L'architettura viene adattata al task tramite fine-tuning:
+l'ultimo layer (\texttt{box\_predictor}), originariamente configurato per
+91 classi (dataset COCO), viene sostituito con uno nuovo per 2 classi
+(background e mano).
+
+\subsection{Campionamento stratificato}
+% TODO: descrizione stratified sampling per fascia d'età
+
+\subsection{Collegamento tra annotazioni CSV e JSON}
+% TODO: descrizione problema ID CSV vs ID COCO
+
+\subsection{Iperparametri}
+% TODO: SGD, lr 2.5e-3, 5000 iterazioni, batch size 4
+
+\section{Keypoint Estimation}
+\label{sec:keypoint_estimation}
+
+Il secondo stadio del pipeline consiste nello stimare la posizione dei 17
+keypoint anatomici della mano. Il paper BoNet utilizza Simple Baselines for
+Human Pose Estimation~\cite{xiao2018simplebaselines} con backbone
+ResNet-50, un'architettura encoder-decoder che riceve in input un crop
+della mano e produce 17 heatmap tramite layer deconvoluzionali.
+
+Per questo lavoro si è scelto di utilizzare Keypoint
+R-CNN~\cite{he2017maskrcnn}, già disponibile in torchvision, come
+alternativa pragmatica a Simple Baselines. La scelta, concordata con il
+supervisore, è motivata da: interfaccia analoga a Faster R-CNN (già
+utilizzato per la detection), disponibilità immediata senza necessità di
+implementare l'architettura da zero. La differenza principale rispetto al
+paper è che Keypoint R-CNN integra detection e keypoint estimation in
+un'unica rete, mentre Simple Baselines richiede un crop già estratto in
+input.
+
+\subsection{Quattro varianti di modello}
+\label{sec:varianti_modello}
+
+Durante lo sviluppo sono state esplorate quattro varianti del modello,
+ciascuna con una diversa strategia di training:
+
+\begin{description}
+    \item[\texttt{full}] addestrato sull'immagine intera, con bounding box
+    e keypoint nelle coordinate originali. Poiché Keypoint R-CNN integra
+    detection e keypoint estimation, questo modello è in grado di
+    localizzare la mano autonomamente, senza bisogno di un crop esterno.
+
+    \item[\texttt{gt\_crop}] addestrato su crop ottenuti tramite la
+    bounding box ground truth, replicando la metodologia del paper BoNet
+    (che valuta esplicitamente le prestazioni con crop \emph{ground
+    truth} come upper bound del task). Il target di bounding box
+    coincide sempre con l'intero crop (\texttt{[0, 0, w, h]}).
+
+    \item[\texttt{mirrored}] estensione di \texttt{gt\_crop} pensata per
+    predire keypoint anche sulla mano destra, assente nelle annotazioni
+    RHPE (che copre solo la mano sinistra/non dominante). Per ogni
+    immagine di training, oltre al crop originale viene aggiunta una
+    versione specchiata orizzontalmente (tramite \texttt{ImageOps.mirror}),
+    con le coordinate $x$ dei keypoint ribaltate come $x' = w - x$
+    (dove $w$ è la larghezza del crop). Il dataset di training raddoppia
+    così da 250 a 500 campioni.
+
+    \item[\texttt{mirrored\_full}] stessa idea di \texttt{mirrored}, ma
+    applicata all'immagine intera anziché al crop: bounding box e
+    keypoint vengono specchiati usando la larghezza dell'intera immagine
+    ($x' = W - x$) invece della larghezza del crop. Questa variante è
+    stata introdotta per risolvere un limite di \texttt{mirrored}: quel
+    modello, avendo visto in training solo crop già stretti attorno alla
+    mano (con bounding box target sempre coincidente con l'intero
+    input), non aveva mai imparato a localizzare con precisione una mano
+    all'interno di un contesto più ampio con sfondo. \texttt{mirrored\_full}
+    impara invece a fare detection e keypoint estimation per entrambe le
+    mani (sinistra e destra) in un unico passaggio, senza necessità di
+    dividere l'immagine o utilizzare una pipeline a più stadi.
+\end{description}
+
+\subsection{Campionamento e iperparametri}
+
+Il campionamento segue la stessa logica stratificata per fascia d'età
+utilizzata per la hand detection (Sez.~\ref{sec:hand_detection}): 250
+immagini di training e 50 di validation.
+
+Il paper BoNet indica, per la keypoint estimation, solo il numero di
+epoche (20) e l'uso dei ``parametri suggeriti'' da Simple Baselines
+(Adam, learning rate $10^{-3}$). Poiché Keypoint R-CNN appartiene alla
+famiglia Faster R-CNN — tradizionalmente addestrata con SGD — questi
+parametri non si applicano direttamente all'architettura scelta. Si è
+quindi optato per SGD con iperparametri standard per questa famiglia di
+modelli (learning rate $5\times10^{-3}$, momentum 0.9, weight decay
+$5\times10^{-4}$), mantenendo le 20 epoche indicate dal paper.
+
+\subsection{Estensione alla mano destra tramite mirroring}
+\label{sec:mirroring}
+
+Poiché le annotazioni RHPE coprono esclusivamente la mano sinistra
+(non dominante), l'unico modo per ottenere dati di training con
+ground truth per la mano destra è generarli sinteticamente tramite
+specchiamento orizzontale, sia dell'immagine che delle coordinate dei
+keypoint. Questa strategia, concordata con il supervisore, è stata
+implementata a due livelli — sul crop (\texttt{mirrored}) e
+sull'immagine intera (\texttt{mirrored\_full}) — con risultati
+qualitativamente diversi discussi nel Capitolo~\ref{chap:risultati}.
+
+La valutazione quantitativa sulla mano destra non è possibile, in
+assenza di ground truth nel test set RHPE; la verifica è quindi
+qualitativa, tramite ispezione visiva delle predizioni.
+
+\section{Metriche di valutazione}
+\label{sec:metriche}
+
+Per la hand detection viene utilizzata la mean Average Precision (mAP)
+basata su Intersection over Union (IoU), calcolata con la libreria
+\texttt{torchmetrics}.
+
+Per la keypoint estimation, la metrica standard è la mAP/mAR basata su
+\emph{Object Keypoint Similarity} (OKS)~\cite{lin2014coco}, analoga alla
+mAP per detection ma che sostituisce l'IoU con una misura di similarità
+tra punti, pesata da un parametro $\sigma$ specifico per ciascun
+keypoint. La libreria \texttt{torchmetrics} (v1.5.2) non supporta
+\texttt{iou\_type='keypoints'}; la valutazione OKS è stata quindi
+implementata direttamente con \texttt{pycocotools.cocoeval.COCOeval}.
+
+\subsection{Sigma OKS}
+\label{sec:sigma_oks}
+
+Il parametro $\sigma$ regola la severità della metrica OKS: valori più
+piccoli penalizzano più duramente piccoli errori di posizionamento. I
+sigma standard definiti per il dataset COCO~\cite{lin2014coco} sono
+calibrati sui keypoint del corpo umano e non hanno un equivalente diretto
+per i keypoint anatomici della mano.
+
+In una prima fase è stato utilizzato un sigma uniforme (0.05) come
+approssimazione documentata. Successivamente, dal materiale
+supplementare del paper BoNet è stato possibile recuperare i 17 valori
+di $\sigma$ effettivamente utilizzati dagli autori, calcolati tramite la
+varianza delle annotazioni di più esperti sulle stesse immagini (Tabella
+1 del materiale supplementare). Questi valori, riportati in
+Tabella~\ref{tab:sigma_oks}, sono circa un ordine di grandezza più
+stretti di quelli standard COCO (range $0.0039$--$0.0120$ contro
+$0.025$--$0.107$), riflettendo la maggiore precisione richiesta nella
+localizzazione dei landmark anatomici della mano.
+
+\begin{table}[h]
+\centering
+\caption{Sigma OKS per i 17 keypoint della mano, dal materiale supplementare del paper BoNet~\cite{escobar2019bonet}.}
+\label{tab:sigma_oks}
+\begin{tabular}{lc}
+\toprule
+Keypoint & $\sigma$ \\
+\midrule
+f1\_0, f1\_1, f1\_2 & 0.0110, 0.0107, 0.0090 \\
+f2\_0, f2\_1, f2\_2 & 0.0076, 0.0074, 0.0071 \\
+f3\_0, f3\_1, f3\_2 & 0.0039, 0.0039, 0.0040 \\
+f4\_0, f4\_1, f4\_2 & 0.0070, 0.0071, 0.0071 \\
+f5\_0, f5\_1, f5\_2 & 0.0120, 0.0120, 0.0120 \\
+anchor\_0, anchor\_1 & 0.0090, 0.0080 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+L'adozione dei sigma reali ha comportato una revisione sostanziale dei
+risultati numerici (Sez.~\ref{sec:risultati_keypoint}), portandoli a
+valori più bassi ma molto più confrontabili con quelli riportati dal
+paper originale.

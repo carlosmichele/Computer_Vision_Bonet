@@ -1,0 +1,315 @@
+% !TeX program = xelatex
+\documentclass[a4paper,oneside,11pt]{book}
+
+%\usepackage[T1]{fontenc}
+%\usepackage[utf8]{inputenc}
+\usepackage[main=italian, english]{babel}
+\usepackage{mathrsfs}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsxtra}
+\usepackage{amsthm}
+\usepackage{lipsum}
+\usepackage{url}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amscd}
+\usepackage{centernot}
+\usepackage{makeidx}
+\usepackage{leftidx}
+\usepackage{sidecap}
+\usepackage{afterpage}
+\usepackage[space]{grffile}
+\usepackage[autostyle, italian=guillemets]{csquotes}
+\usepackage[mathscr]{euscript}
+\usepackage{adjustbox}
+\usepackage{xcolor}
+\usepackage{scalerel,stackengine}
+\usepackage{braket}
+%\usepackage{eufrak}
+\usepackage[shortlabels]{enumitem}
+%\usepackage{enumitem}
+\usepackage{tikz-cd}
+\usepackage{tikz}
+%\usepackage[backend=biber, sorting=none]{biblatex}
+\usepackage[backend=bibtex]{biblatex}
+\usepackage[new]{old-arrows}
+\let\mathdollar\relax
+\usepackage{MnSymbol}
+
+\usepackage{fancyhdr}
+
+
+\pagestyle{fancy}
+\renewcommand{\headrulewidth}{1pt}
+\fancyhf{}
+\fancyhead[LE]{}
+\fancyhead[RO]{}
+\fancyhead[LO]{\slshape\rightmark}
+\fancyhead[RE]{\slshape\leftmark}
+\fancyfoot[C]{\thepage}
+
+\usepackage{regexpatch}% http://ctan.org/pkg/regexpatch
+\makeatletter
+% \*patchcmd{<cmd>}{<search>}{<replace>}{<success>}{<failure>}
+\xpatchcmd{\chaptermark}{\MakeUppercase}{}{}{}%
+\xpatchcmd{\sectionmark}{\MakeUppercase}{}{}{}%
+\xpatchcmd*{\tableofcontents}{\MakeUppercase}{}{}{}%
+\makeatother
+
+\makeatletter
+\newsavebox\myboxA
+\newsavebox\myboxB
+\newlength\mylenA
+
+\newcommand*\xoverline[2][0.75]{%
+    \sbox{\myboxA}{$\m@th#2$}%
+    \setbox\myboxB\null% Phantom box
+    \ht\myboxB=\ht\myboxA%
+    \dp\myboxB=\dp\myboxA%
+    \wd\myboxB=#1\wd\myboxA% Scale phantom
+    \sbox\myboxB{$\m@th\overline{\copy\myboxB}$}%  Overlined phantom
+    \setlength\mylenA{\the\wd\myboxA}%   calc width diff
+    \addtolength\mylenA{-\the\wd\myboxB}%
+    \ifdim\wd\myboxB<\wd\myboxA%
+       \rlap{\hskip 0.5\mylenA\usebox\myboxB}{\usebox\myboxA}%
+    \else
+        \hskip -0.5\mylenA\rlap{\usebox\myboxA}{\hskip 0.5\mylenA\usebox\myboxB}%
+    \fi}
+\makeatother
+
+
+\newcommand{\dbar}{d\hspace*{-0.08em}\bar{}\hspace*{0.1em}}
+\newcommand{\numberset}{\mathbb}
+\newcommand{\N}{\numberset{N}}
+\newcommand{\Z}{\numberset{Z}}
+\newcommand{\Q}{\numberset{Q}}
+\newcommand{\R}{\numberset{R}}
+\newcommand{\C}{\numberset{C}}
+
+\newcommand{\E}{\mathscr{E}}
+\newcommand{\A}{\mathscr{A}}
+\newcommand{\F}{\mathscr{F}}
+\newcommand{\s}{\mathcal{S}}
+\newcommand{\p}{\mathcal{P}}
+\newcommand{\np}{\mathfrak{p}}
+\newcommand{\h}{\mathscr{H}}
+\newcommand{\K}{\mathscr{K}}
+\newcommand{\B}{\mathscr{B}}
+\newcommand{\Ra}{\mathscr{R}}
+\newcommand{\M}{\mathscr{M}}
+\newcommand{\U}{\mathcal{U}}
+\newcommand{\G}{\mathcal{G}}
+\newcommand{\SG}{\mathrm{SG}}
+\newcommand{\sk}{\mathrm{sk}}
+\newcommand{\scc}{\mathrm{scc}}
+\renewcommand{\sc}{\mathrm{sc}}
+\newcommand{\SP}{\mathrm{SP}}
+\newcommand{\cl}{\mathrm{cl}}
+\newcommand{\simb}{\mathrm{sym}}
+
+\renewcommand{\d}{\mathcal{D}}
+\renewcommand{\r}{\mathcal{R}}
+\renewcommand{\S}{\mathsf{S}}
+\renewcommand{\epsilon}{\varepsilon}
+\renewcommand{\phi}{\varphi}
+\renewcommand{\#}{\texttt{\symbol{`\#}}}
+\renewcommand\Re{\operatorname{Re}}
+\renewcommand\Im{\operatorname{Im}}
+
+
+\DeclareMathOperator{\supp}{supp}
+\DeclareMathOperator{\singsupp}{sing \ supp}
+\DeclareMathOperator{\loc}{loc}
+\DeclareMathOperator{\comp}{comp}
+\DeclareMathOperator{\Char}{Char}
+\DeclareMathOperator{\WF}{WF}
+\DeclareMathOperator{\pv}{pv}
+\DeclareMathOperator{\OP}{Op}
+\DeclareMathOperator{\Op}{Op}
+\DeclareMathOperator{\Res}{Res}
+\DeclareMathOperator{\tr}{tr}
+\DeclareMathOperator{\id}{id}
+
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert}
+\DeclarePairedDelimiter{\norm}{\lVert}{\rVert}
+\newcommand{\anorm}[1]{\left\vert\mkern-1mu\left\vert\mkern-1mu\left\vert #1 \right\vert\mkern-1mu\right\vert\mkern-1mu\right\vert}
+
+\newenvironment{system}%
+{\left\lbrace\begin{array}{@{}l@{}}}%
+{\end{array}\right.}
+
+\stackMath
+\newcommand\reallywidehat[1]{%
+\savestack{\tmpbox}{\stretchto{%
+\scaleto{%
+\scalerel*[\widthof{\ensuremath{#1}}]{\kern-.6pt\bigwedge\kern-.6pt}%
+{\rule[-\textheight/2]{1ex}{\textheight}}%WIDTH-LIMITED BIG WEDGE
+}{\textheight}% 
+}{0.5ex}}%
+\stackon[1pt]{#1}{\tmpbox}%
+}
+\parskip 1ex
+
+\stackMath
+\newcommand\reallywidecheck[1]{%
+\savestack{\tmpbox}{\stretchto{%
+  \scaleto{%
+    \scalerel*[\widthof{\ensuremath{#1}}]{\kern-.6pt\bigwedge\kern-.6pt}%
+    {\rule[-\textheight/2]{1ex}{\textheight}}%WIDTH-LIMITED BIG WEDGE
+  }{\textheight}% 
+}{0.5ex}}%
+\stackon[1pt]{#1}{\scalebox{-1}{\tmpbox}}%
+}
+\parskip 1ex
+
+\theoremstyle{definition}
+\newtheorem{defn}{Definition}[chapter]
+\newtheorem{thm}[defn]{Theorem}
+\newtheorem{prop}[defn]{Proposition}
+\newtheorem{lem}[defn]{Lemma}
+\newtheorem{cor}[defn]{Corollary}
+\newtheorem{rmk}[defn]{Remark}
+\newtheorem{notn}[defn]{Notation}
+\newtheorem{rmks}[defn]{Remarks}
+\newtheorem{ex}[defn]{Example}
+\newtheorem{post}[defn]{Postulate}
+
+\newtheorem{innercustomgeneric}{\customgenericname}
+\providecommand{\customgenericname}{}
+\newcommand{\newcustomtheorem}[2]{%
+  \newenvironment{#1}[1]
+  {%
+   \renewcommand\customgenericname{#2}%
+   \renewcommand\theinnercustomgeneric{##1}%
+   \innercustomgeneric
+  }
+  {\endinnercustomgeneric}
+}
+\newcustomtheorem{custompost}{Postulate}
+
+\renewcommand{\theequation}{\thesection.\arabic{equation}}
+\renewcommand{\theequation}{\thechapter.\arabic{equation}}
+
+\addbibresource{Bibliography_thesis.bib}
+
+% \makeindex  % non usato: nessun \index{} nel documento
+
+
+
+\usepackage[no-math]{fontspec}
+\newfontfamily\TahomaFont[
+Scale=1,Ligatures={TeX},
+BoldFont={Tahoma Bold}, 
+ItalicFont={Verdana Italic},
+]{Tahoma}
+
+\usepackage[absolute]{textpos}
+
+\begin{document}
+\thispagestyle{empty}
+
+\begingroup
+\TahomaFont
+
+\begin{textblock*}{4cm}(8.65cm,1.03cm)
+	\centerline {\includegraphics[width=3.67cm]{LogoUniToConvertito.png}}
+\end{textblock*}
+
+
+\begin{textblock*}{21cm}(0cm,8,98cm)
+	\fontsize{18}{22}\selectfont
+	\centerline {\textbf{ Universit\`a degli Studi di Torino}}
+\end{textblock*}
+\begin{textblock*}{21cm}(0cm,9.97cm)
+	\fontsize{18}{22}\selectfont
+	\centerline {\textit{Corso di Laurea Triennale in Informatica}}
+\end{textblock*}
+
+
+\begin{textblock*}{21cm}(0cm,13.66cm)
+	\fontsize{14}{17}\selectfont
+	\centerline  {\textbf{Hand Pose Estimation per la stima dell'età ossea pediatrica}}
+\end{textblock*}
+\begin{textblock*}{21cm}(0cm,14.46cm)
+	\fontsize{18}{22}\selectfont
+	\centerline{\Large {Tesi di Laurea}}
+\end{textblock*}
+
+
+
+\fontsize{14}{17}\selectfont
+
+\begin{textblock*}{8cm}(3.04cm,18.26cm)
+	\noindent 
+	\textbf{Relatore/Relatrice}
+\end{textblock*}
+\begin{textblock*}{8cm}(3.04cm,18.85cm)
+	\noindent 
+	Grangetto Marco
+\end{textblock*}
+
+\begin{textblock*}{8cm}(3.04cm,20.64cm)
+	\noindent 
+	\textbf{Correlatore/Correlatrice}
+\end{textblock*}
+\begin{textblock*}{8cm}(3.04cm,21.23cm)
+	\noindent
+	Cannito Michele
+\end{textblock*}
+
+\begin{textblock*}{8cm}(12.33cm,22.95cm)
+	\noindent
+	\textbf{Candidato}
+\end{textblock*}
+\begin{textblock*}{8cm}(12.33cm,23.55cm)
+	\noindent	\textbf{Giacomelli Daniele}
+\end{textblock*}
+\begin{textblock*}{8cm}(12.33cm,24.14cm)
+	\noindent	980415
+\end{textblock*}
+
+\begin{textblock*}{21cm}(0cm,27.34cm)
+	\centerline{Anno Accademico 2025/2026}
+\end{textblock*}
+
+\endgroup
+
+
+\null\newpage
+\thispagestyle{empty}
+$ $
+
+
+\TPoptions{absolute=false}
+\pagestyle{plain}
+\frontmatter
+
+%\pagenumbering{arabic}
+%\setcounter{page}{1}
+\tableofcontents
+%\include{Abstract}
+\newpage
+$ $
+
+
+\include{capitoli/Introduction}
+
+%\include{symbols}
+%Eventuali altre parti preliminari
+\mainmatter
+
+\include{capitoli/Chapter1}
+\include{capitoli/Chapter2}
+\include{capitoli/Chapter3}
+\include{capitoli/Chapter4}
+\include{capitoli/Chapter5}
+\include{capitoli/Acknowledgements}
+
+\cleardoublepage
+\addcontentsline{toc}{chapter}{Bibliografia}
+%\nocite{*}
+\printbibliography
+\end{document}

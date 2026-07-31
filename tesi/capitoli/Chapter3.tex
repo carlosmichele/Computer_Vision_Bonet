@@ -1,0 +1,140 @@
+\chapter{Risultati sperimentali}
+\label{chap:risultati}
+
+\section{Hand Detection}
+\label{sec:risultati_detection}
+
+\begin{table}[h]
+\centering
+\caption{Risultati del modello di hand detection sui tre split.}
+\label{tab:risultati_bbox}
+\begin{tabular}{lccc}
+\toprule
+Split & mAP@[.5:.95] & mAP@.50 & mAP@.75 \\
+\midrule
+Train & 0.9159 & 0.9888 & 0.9866 \\
+Val   & 0.8856 & 0.9842 & 0.9443 \\
+Test  & 0.9219 & 0.9791 & 0.9791 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+I risultati sono consistenti tra i tre split, senza segnali di
+overfitting. Il paper BoNet riporta mAP@[.5:.95] = 90.1\% sul validation
+set con l'intero training set; il valore ottenuto (88.56\%) è comparabile
+nonostante l'addestramento su un sottoinsieme di sole 250 immagini.
+
+% TODO: figure con esempi di bbox predette vs ground truth
+
+\section{Keypoint Estimation}
+\label{sec:risultati_keypoint}
+
+Le quattro varianti di modello descritte in
+Sez.~\ref{sec:varianti_modello} sono state valutate su tutti e tre gli
+split, in tre modalità di input: \texttt{full} (immagine intera),
+\texttt{gt\_crop} (crop con bounding box ground truth) e
+\texttt{det\_crop} (crop con bounding box predetta dal modello di
+detection, Sez.~\ref{sec:hand_detection}). I risultati riportati usano i
+sigma OKS reali del paper (Tabella~\ref{tab:sigma_oks}).
+
+\begin{table}[htbp]
+\centering
+\caption{Risultati di keypoint estimation, sigma OKS reali. Le celle in cui la modalità di valutazione coincide con il dominio di training del modello sono evidenziate concettualmente nel testo.}
+\label{tab:risultati_keypoint_completo}
+\small
+\begin{tabular}{llccccc}
+\toprule
+Split & Model & Mode & mAP@[.5:.95] & mAP@.50 & mAP@.75 & mAR@[.5:.95] \\
+\midrule
+Test & full & full & 0.6918 & 0.9702 & 0.8955 & 0.7380 \\
+Test & full & gt\_crop & 0.5153 & 0.8113 & 0.5550 & 0.5608 \\
+Test & full & det\_crop & 0.5407 & 0.8964 & 0.5887 & 0.5937 \\
+Test & gt\_crop & full & 0.0856 & 0.2446 & 0.0484 & 0.1013 \\
+Test & gt\_crop & gt\_crop & 0.7037 & 0.9619 & 0.9239 & 0.7456 \\
+Test & gt\_crop & det\_crop & 0.7205 & 0.9713 & 0.9472 & 0.7620 \\
+Test & mirrored & full & 0.0619 & 0.1461 & 0.0235 & 0.0886 \\
+Test & mirrored & gt\_crop & 0.6404 & 0.9527 & 0.8030 & 0.6924 \\
+Test & mirrored & det\_crop & 0.6433 & 0.9662 & 0.8240 & 0.6924 \\
+Test & mirrored\_full & full & 0.6759 & 0.9307 & 0.8888 & 0.7329 \\
+Test & mirrored\_full & gt\_crop & 0.5267 & 0.9291 & 0.5707 & 0.5772 \\
+Test & mirrored\_full & det\_crop & 0.5606 & 0.9322 & 0.6470 & 0.6089 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% TODO: aggiungere anche train/val se utile, vedi tabella completa nel diario
+
+Emergono due pattern principali:
+
+\begin{enumerate}
+    \item \textbf{Coerenza dominio di training/valutazione}: ogni
+    modello ottiene le migliori prestazioni quando valutato nella
+    modalità corrispondente al proprio dominio di training. Il caso più
+    estremo è \texttt{gt\_crop} valutato in modalità \texttt{full}
+    (mAP@[.5:.95] = 0.086 sul test set), che crolla drasticamente perché
+    il modello non ha mai imparato a localizzare la mano in un contesto
+    più ampio del crop stretto.
+
+    \item \textbf{Generalizzazione di \texttt{mirrored\_full}}: questo
+    modello mantiene prestazioni ragionevoli anche fuori dal proprio
+    dominio primario (mAP@[.5:.95] $\approx$ 0.53--0.56 su crop, sul test
+    set), risultato nettamente migliore del quasi totale collasso
+    osservato per \texttt{gt\_crop} e \texttt{mirrored} in modalità
+    \texttt{full}. Ciò conferma l'ipotesi alla base della sua
+    progettazione (Sez.~\ref{sec:varianti_modello}).
+\end{enumerate}
+
+Confrontando con il paper BoNet (mAP@[.5:.95] $\approx$ 0.808 con
+bounding box ground truth, sull'intero dataset di training), i risultati
+ottenuti su un sottoinsieme di 250 immagini (\texttt{gt\_crop} in
+modalità \texttt{gt\_crop}: 0.704; \texttt{mirrored} in modalità
+\texttt{gt\_crop}: 0.640) risultano comparabili, tenendo conto della
+significativa riduzione del dataset di training.
+
+% TODO: inserire figure con esempi di keypoint predetti vs ground truth
+
+\section{Esplorazione qualitativa: entrambe le mani}
+\label{sec:esplorazione_dx}
+
+Poiché il test set RHPE non include ground truth per la mano destra, la
+capacità dei modelli di predire correttamente i keypoint su entrambe le
+mani nella stessa immagine è stata valutata qualitativamente, tramite
+quattro approcci successivi:
+
+\begin{description}
+    \item[v1] detection con il modello \texttt{full} sull'immagine
+    intera (prime due predizioni per score), keypoint con
+    \texttt{mirrored} su ciascun crop rilevato. Il modello \texttt{full}
+    non generalizza alla ricerca di una seconda mano, non avendo mai
+    visto più di una bounding box per immagine in training.
+
+    \item[v2] immagine divisa verticalmente a metà, detection con
+    \texttt{full} eseguita separatamente su ciascuna metà, keypoint con
+    \texttt{mirrored}. Risultati incostanti: la mano destra viene
+    rilevata con buon punteggio in alcuni casi, con punteggio molto
+    basso o nullo in altri.
+
+    \item[v3] stessa suddivisione a metà, ma sia detection che keypoint
+    affidati al modello \texttt{mirrored}. La detection diventa
+    affidabile su entrambe le metà (punteggi $>0.98$), ma i keypoint
+    predetti risultano errati su entrambe le mani — coerentemente con il
+    limite di generalizzazione di \texttt{mirrored} discusso in
+    Sez.~\ref{sec:varianti_modello}.
+
+    \item[v4] singolo passaggio in avanti (\emph{forward pass})
+    sull'immagine intera con il modello \texttt{mirrored\_full}, che
+    produce direttamente detection e keypoint per entrambe le mani senza
+    necessità di suddivisione dell'immagine o pipeline a più stadi.
+\end{description}
+
+La strategia v4 risulta la più efficace e coerente con i risultati
+quantitativi discussi in precedenza, e viene adottata come soluzione di
+riferimento per l'obiettivo esplorativo di predizione su entrambe le
+mani.
+
+% TODO: inserire figure comparative v1-v4
+
+\section{Bone Age Assessment}
+\label{sec:risultati_bonet}
+
+% TODO: da completare quando disponibile
