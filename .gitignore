@@ -5,3 +5,22 @@ __pycache__/
 .vscode/
 experiments/*
 *.png
+!tesi/LogoUniToConvertito.png
+
+# LaTeX build artifacts
+tesi/*.aux
+tesi/capitoli/*.aux
+tesi/*.bbl
+tesi/*.blg
+tesi/*.bcf
+tesi/main-blx.bib
+tesi/*.log
+tesi/*.out
+tesi/*.toc
+tesi/*.lof
+tesi/*.lot
+tesi/*.synctex.gz
+tesi/*.run.xml
+tesi/*.fdb_latexmk
+tesi/*.fls
+tesi/main.pdf
