@@ -10,7 +10,19 @@
 \section{Architetture di riferimento}
 
 \subsection{Faster R-CNN e ResNet}
-% TODO: \cite{he2016resnet}
+
+Il primo stadio del pipeline BoNet si basa su Faster
+R-CNN~\cite{ren2015fasterrcnn}, un'architettura di object detection a due
+stadi: una \emph{Region Proposal Network} (RPN) genera un insieme di
+regioni candidate a partire dalle feature map dell'immagine, dopodiché
+una seconda rete classifica ciascuna regione e ne raffina la bounding
+box. In questo lavoro, coerentemente con il paper di riferimento, Faster
+R-CNN viene utilizzato con backbone ResNet-50~\cite{he2016resnet} dotato
+di \emph{Feature Pyramid Network} (FPN), pre-addestrato su ImageNet.
+ResNet introduce connessioni residue che permettono di addestrare reti
+molto profonde senza incorrere nel problema della scomparsa del
+gradiente, rendendola una scelta comune come backbone per compiti di
+visione artificiale.
 
 \subsection{Keypoint estimation: Simple Baselines e Keypoint R-CNN}
 % TODO: \cite{xiao2018simplebaselines}, \cite{he2017maskrcnn}

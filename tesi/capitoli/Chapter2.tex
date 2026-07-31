@@ -54,13 +54,41 @@ l'ultimo layer (\texttt{box\_predictor}), originariamente configurato per
 (background e mano).
 
 \subsection{Campionamento stratificato}
-% TODO: descrizione stratified sampling per fascia d'età
+
+Su indicazione del supervisore, i sottoinsiemi utilizzati per la hand 
+detection sono composti da 250 immagini di training e 50 di validation.
+Anziché utilizzare le prime $N$ immagini del training set, per la
+costruzione dei sottoinsiemi di training e validation è stato adottato
+un campionamento stratificato per fascia d'età, con fasce di ampiezza 24
+mesi. Questa scelta garantisce che il sottoinsieme utilizzato per
+l'addestramento sia rappresentativo dell'intera distribuzione delle età
+del dataset, evitando che alcune fasce risultino sovra- o
+sotto-rappresentate rispetto ad altre. 
 
 \subsection{Collegamento tra annotazioni CSV e JSON}
-% TODO: descrizione problema ID CSV vs ID COCO
+
+Un aspetto non banale nella costruzione del dataset riguarda il
+collegamento tra le informazioni provenienti dai due formati di
+annotazione disponibili. Il file CSV identifica ciascun paziente tramite
+un ID progressivo (1, 2, 3, \dots), mentre il file JSON in formato COCO
+assegna a ciascuna immagine un ID interno arbitrario (ad esempio 3722) e
+un nome file (ad esempio \texttt{00001.png}). L'unico elemento in comune
+tra le due annotazioni è il numero progressivo codificato nel nome del
+file, che corrisponde all'ID utilizzato nel CSV. Il dataset è stato
+quindi costruito estraendo tale numero dal nome del file e utilizzandolo
+per recuperare, dal CSV, le informazioni associate alla stessa immagine.
+Si tratta di un dettaglio implementativo apparentemente marginale, ma
+che, se gestito in modo scorretto, introduce silenziosamente
+disallineamenti tra le immagini e le relative annotazioni.
 
 \subsection{Iperparametri}
-% TODO: SGD, lr 2.5e-3, 5000 iterazioni, batch size 4
+
+Gli iperparametri di training sono stati allineati a quelli riportati nel
+paper BoNet: ottimizzatore SGD con learning rate costante pari a
+$2.5\times10^{-3}$, momentum 0.9 e weight decay $5\times10^{-4}$, per un
+totale di 5000 iterazioni con batch size 4. Il modello viene valutato al
+termine di ogni epoca sul validation set, e viene mantenuto quello con la
+mAP@[.5:.95] più alta.
 
 \section{Keypoint Estimation}
 \label{sec:keypoint_estimation}
@@ -131,7 +159,7 @@ immagini di training e 50 di validation.
 Il paper BoNet indica, per la keypoint estimation, solo il numero di
 epoche (20) e l'uso dei ``parametri suggeriti'' da Simple Baselines
 (Adam, learning rate $10^{-3}$). Poiché Keypoint R-CNN appartiene alla
-famiglia Faster R-CNN — tradizionalmente addestrata con SGD — questi
+famiglia Faster R-CNN, tradizionalmente addestrata con SGD, questi
 parametri non si applicano direttamente all'architettura scelta. Si è
 quindi optato per SGD con iperparametri standard per questa famiglia di
 modelli (learning rate $5\times10^{-3}$, momentum 0.9, weight decay
@@ -145,8 +173,8 @@ Poiché le annotazioni RHPE coprono esclusivamente la mano sinistra
 ground truth per la mano destra è generarli sinteticamente tramite
 specchiamento orizzontale, sia dell'immagine che delle coordinate dei
 keypoint. Questa strategia, concordata con il supervisore, è stata
-implementata a due livelli — sul crop (\texttt{mirrored}) e
-sull'immagine intera (\texttt{mirrored\_full}) — con risultati
+implementata a due livelli, sul crop (\texttt{mirrored}) e
+sull'immagine intera (\texttt{mirrored\_full}), con risultati
 qualitativamente diversi discussi nel Capitolo~\ref{chap:risultati}.
 
 La valutazione quantitativa sulla mano destra non è possibile, in
