@@ -45,7 +45,7 @@ Test  & 79   & 38 (48.1\%)   & 41 (51.9\%)   \\
 \section{Hand Detection}
 \label{sec:hand_detection}
 
-Il primo stadio del pipeline consiste nel localizzare automaticamente la
+Il primo stadio della pipeline consiste nel localizzare automaticamente la
 mano nell'immagine tramite bounding box. Seguendo il paper BoNet, il
 modello scelto è Faster R-CNN con backbone ResNet-50 FPN, pre-addestrato su
 ImageNet. L'architettura viene adattata al task tramite fine-tuning:
@@ -93,7 +93,7 @@ mAP@[.5:.95] più alta.
 \section{Keypoint Estimation}
 \label{sec:keypoint_estimation}
 
-Il secondo stadio del pipeline consiste nello stimare la posizione dei 17
+Il secondo stadio della pipeline consiste nello stimare la posizione dei 17
 keypoint anatomici della mano. Il paper BoNet utilizza Simple Baselines for
 Human Pose Estimation~\cite{xiao2018simplebaselines} con backbone
 ResNet-50, un'architettura encoder-decoder che riceve in input un crop
