@@ -5,27 +5,67 @@
 % TODO: panoramica su approcci deep learning per bone age assessment
 
 \section{Il paradigma BoNet}
-% TODO: descrizione del paper di riferimento \cite{escobar2019bonet}
+\label{sec:paradigma_bonet}
+
+Il paradigma proposto da BoNet~\cite{escobar2019bonet} nasce da
+un'osservazione: i metodi clinici più precisi per la stima dell'età
+ossea, come il TW3, si basano su un'analisi locale di specifiche regioni
+anatomiche della mano, mentre la maggior parte degli approcci automatici
+esistenti al momento della pubblicazione analizzava l'immagine
+radiografica nella sua interezza, senza sfruttare informazioni locali.
+Gli autori propongono quindi di introdurre la stima di keypoint
+anatomici come nuovo task, per fornire al sistema un'informazione locale
+simile a quella usata dai radiologi.
+
+La pipeline è organizzata in tre stadi: prima la mano viene localizzata
+nell'immagine (hand detection), poi vengono stimati 17 keypoint
+anatomici (hand pose estimation), infine l'informazione ottenuta viene
+usata per stimare l'età ossea (bone age assessment). In quest'ultimo
+stadio, l'immagine ritagliata attorno alla mano e una mappa costruita a
+partire dai keypoint vengono combinate insieme all'informazione sul
+genere del paziente per produrre la stima finale.
+
+Gli autori mostrano che questo approccio, basato su informazione locale,
+supera nettamente le prestazioni di un modello che analizza solo
+l'immagine intera.
 
 \section{Architetture di riferimento}
 
 \subsection{Faster R-CNN e ResNet}
 
-Il primo stadio del pipeline BoNet si basa su Faster
+La prima fase della pipeline BoNet si basa su Faster
 R-CNN~\cite{ren2015fasterrcnn}, un'architettura di object detection a due
-stadi: una \emph{Region Proposal Network} (RPN) genera un insieme di
-regioni candidate a partire dalle feature map dell'immagine, dopodiché
-una seconda rete classifica ciascuna regione e ne raffina la bounding
-box. In questo lavoro, coerentemente con il paper di riferimento, Faster
-R-CNN viene utilizzato con backbone ResNet-50~\cite{he2016resnet} dotato
-di \emph{Feature Pyramid Network} (FPN), pre-addestrato su ImageNet.
-ResNet introduce connessioni residue che permettono di addestrare reti
-molto profonde senza incorrere nel problema della scomparsa del
-gradiente, rendendola una scelta comune come backbone per compiti di
-visione artificiale.
+stadi. Una \emph{Region Proposal Network} (RPN) scorre sulle feature map
+dell'immagine e propone un insieme di regioni candidate che potrebbero
+contenere un oggetto, senza ancora classificarle; una seconda rete prende
+in input queste proposte, classifica ciascuna regione e ne raffina la
+bounding box. In questo lavoro, coerentemente con il paper di
+riferimento, Faster R-CNN viene utilizzato con backbone
+ResNet-50~\cite{he2016resnet} dotato di \emph{Feature Pyramid Network}
+(FPN), un'estensione che combina le feature a diverse risoluzioni per
+riconoscere meglio oggetti di dimensioni molto diverse, pre-addestrato su
+ImageNet. ResNet introduce connessioni residue che permettono di
+addestrare reti molto profonde senza incontrare il problema della
+scomparsa del gradiente, rendendola una scelta comune come backbone per
+compiti di visione artificiale.
 
 \subsection{Keypoint estimation: Simple Baselines e Keypoint R-CNN}
-% TODO: \cite{xiao2018simplebaselines}, \cite{he2017maskrcnn}
+
+Per il secondo stadio della pipeline, gli autori di BoNet si basano su
+Simple Baselines for Human Pose Estimation~\cite{xiao2018simplebaselines},
+descritta nel paper di riferimento come l'architettura allo stato
+dell'arte per la stima della posa umana al momento della sua
+pubblicazione.
+
+Un'alternativa è Keypoint R-CNN~\cite{he2017maskrcnn}, presentata nello
+stesso paper di Mask R-CNN come estensione dello stesso framework alla
+stima della posa: ogni keypoint viene predetto come una maschera binaria,
+con la stessa tecnica usata per predire le maschere di segmentazione. A
+differenza di Simple Baselines, che richiede in input un crop già
+ritagliato attorno al soggetto, Keypoint R-CNN integra detection e
+keypoint estimation in un'unica rete, individuando prima le regioni
+candidate con la RPN e poi predicendo i keypoint direttamente su ciascuna
+di esse.
 
 \section{Dataset di riferimento}
 % TODO: RSNA \cite{halabi2019rsna} e RHPE
