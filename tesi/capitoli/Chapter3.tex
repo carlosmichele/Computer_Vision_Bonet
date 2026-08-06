@@ -24,7 +24,14 @@ overfitting. Il paper BoNet riporta mAP@[.5:.95] = 90.1\% sul validation
 set con l'intero training set; il valore ottenuto (88.56\%) è comparabile
 nonostante l'addestramento su un sottoinsieme di sole 250 immagini.
 
-% TODO: figure con esempi di bbox predette vs ground truth
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.32\textwidth]{figure/esempiobbox1.jpg}\hfill
+\includegraphics[width=0.32\textwidth]{figure/esempiobbox2.jpg}\hfill
+\includegraphics[width=0.32\textwidth]{figure/esempiobbox3.jpg}
+\caption{Esempi di bounding box predetta (rossa) e ground truth (verde) sul test set.}
+\label{fig:esempi_bbox}
+\end{figure}
 
 \section{Keypoint Estimation}
 \label{sec:risultati_keypoint}
@@ -91,7 +98,19 @@ modalità \texttt{gt\_crop}: 0.704; \texttt{mirrored} in modalità
 \texttt{gt\_crop}: 0.640) risultano comparabili, tenendo conto della
 significativa riduzione del dataset di training.
 
-% TODO: inserire figure con esempi di keypoint predetti vs ground truth
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.48\textwidth]{figure/kpfullmodefull.jpg}\hfill
+\includegraphics[width=0.48\textwidth]{figure/kpgtcropmodegtcrop.jpg}\\[1em]
+\includegraphics[width=0.48\textwidth]{figure/kpgtcropmodedetcrop.jpg}\hfill
+\includegraphics[width=0.48\textwidth]{figure/kpmirroredfullmodefull1.jpg}
+\caption{Esempi di keypoint predetti (rossi) e ground truth (verdi) per quattro
+combinazioni modello/modalità: \texttt{full}/\texttt{full} (in alto a
+sinistra), \texttt{gt\_crop}/\texttt{gt\_crop} (in alto a destra),
+\texttt{gt\_crop}/\texttt{det\_crop} (in basso a sinistra),
+\texttt{mirrored\_full}/\texttt{full} (in basso a destra).}
+\label{fig:esempi_keypoint}
+\end{figure}
 
 \section{Esplorazione qualitativa: entrambe le mani}
 \label{sec:esplorazione_dx}
@@ -107,32 +126,72 @@ quattro approcci successivi:
     \texttt{mirrored} su ciascun crop rilevato. Il modello \texttt{full}
     non generalizza alla ricerca di una seconda mano, non avendo mai
     visto più di una bounding box per immagine in training.
+\end{description}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figure/rhkpv1.jpg}\hfill
+\includegraphics[width=0.48\textwidth]{figure/rhkpv1_2.jpg}
+\caption{v1: detection con \texttt{full} sull'immagine intera, keypoint
+con \texttt{mirrored}.}
+\label{fig:rhkp_v1}
+\end{figure}
+
+\begin{description}
     \item[v2] immagine divisa verticalmente a metà, detection con
     \texttt{full} eseguita separatamente su ciascuna metà, keypoint con
     \texttt{mirrored}. Risultati incostanti: la mano destra viene
     rilevata con buon punteggio in alcuni casi, con punteggio molto
     basso o nullo in altri.
+\end{description}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figure/rhkpv2.jpg}\hfill
+\includegraphics[width=0.48\textwidth]{figure/rhkpv2_2.jpg}
+\caption{v2: immagine divisa a metà, detection con \texttt{full} su
+ciascuna metà, keypoint con \texttt{mirrored}.}
+\label{fig:rhkp_v2}
+\end{figure}
+
+\begin{description}
     \item[v3] stessa suddivisione a metà, ma sia detection che keypoint
     affidati al modello \texttt{mirrored}. La detection diventa
     affidabile su entrambe le metà (punteggi $>0.98$), ma i keypoint
     predetti risultano errati su entrambe le mani, coerentemente con il
     limite di generalizzazione di \texttt{mirrored} discusso in
     Sez.~\ref{sec:varianti_modello}.
+\end{description}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figure/rhkpv3.jpg}\hfill
+\includegraphics[width=0.48\textwidth]{figure/rhkpv3_2.jpg}
+\caption{v3: immagine divisa a metà, detection e keypoint entrambi con
+\texttt{mirrored}.}
+\label{fig:rhkp_v3}
+\end{figure}
+
+\begin{description}
     \item[v4] singolo passaggio in avanti (\emph{forward pass})
     sull'immagine intera con il modello \texttt{mirrored\_full}, che
     produce direttamente detection e keypoint per entrambe le mani senza
     necessità di suddivisione dell'immagine o pipeline a più stadi.
 \end{description}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.48\textwidth]{figure/rhkpv4.jpg}\hfill
+\includegraphics[width=0.48\textwidth]{figure/rhkpv4_2.jpg}
+\caption{v4: singolo forward pass sull'immagine intera con
+\texttt{mirrored\_full}.}
+\label{fig:rhkp_v4}
+\end{figure}
+
 La strategia v4 risulta la più efficace e coerente con i risultati
 quantitativi discussi in precedenza, e viene adottata come soluzione di
 riferimento per l'obiettivo esplorativo di predizione su entrambe le
 mani.
-
-% TODO: inserire figure comparative v1-v4
 
 \section{Bone Age Assessment}
 \label{sec:risultati_bonet}
