@@ -1,5 +1,148 @@
-\chapter{Stato dell'arte}
+\chapter{Background e stato dell'arte}
 \label{chap:stato_arte}
+
+\section{Fondamenti di reti neurali}
+\label{sec:fondamenti_nn}
+
+Tutti i modelli utilizzati in questo lavoro sono reti neurali
+convoluzionali. Questa sezione ne introduce il funzionamento partendo
+dal problema di base della visione artificiale, la classificazione di
+immagini, per arrivare agli elementi che ricorrono nei capitoli
+successivi: le architetture convoluzionali, il modo in cui vengono
+addestrate e la pratica di riutilizzare modelli già addestrati su altri
+dataset.
+
+\subsection{Il problema della classificazione di immagini}
+\label{sec:classificazione}
+
+Il compito di riferimento della visione artificiale è la classificazione
+di immagini: dato un insieme prestabilito di categorie possibili e
+un'immagine in ingresso, assegnare a quest'ultima la categoria corretta.
+Per una persona si tratta di un'operazione immediata, ma per un
+calcolatore l'immagine non è altro che un tensore di numeri interi,
+tipicamente compresi tra 0 e 255, che rappresentano l'intensità dei
+singoli pixel sui tre canali di colore. Tra questa rappresentazione
+numerica e il concetto che l'immagine raffigura non esiste alcuna
+corrispondenza diretta, e questa distanza prende il nome di
+\emph{semantic gap}.
+
+Il problema è reso più difficile dal fatto che lo stesso soggetto può
+produrre immagini molto diverse tra loro, a seconda del punto di vista,
+dell'illuminazione, della posa o dello sfondo: non è quindi possibile
+scrivere a mano una procedura che riconosca una categoria in tutte
+queste situazioni.
+
+L'approccio che si è affermato è invece guidato dai dati
+(\emph{data-driven}) e si articola in tre passi: raccogliere un insieme
+di immagini corredate dalle rispettive etichette, utilizzare un
+algoritmo di apprendimento automatico per addestrare un classificatore
+su tali dati, e infine valutarne le prestazioni su immagini mai viste
+durante l'addestramento. Per questo motivo i dati disponibili vengono
+divisi in tre insiemi distinti: uno di addestramento, su cui il modello
+apprende i propri parametri, uno di validazione, utilizzato per
+confrontare configurazioni alternative e scegliere la migliore, e uno di
+test, riservato alla valutazione finale.
+
+I concetti richiamati in questa sezione vengono introdotti in
+letteratura nel contesto della classificazione, ma si estendono senza
+modifiche sostanziali ai compiti affrontati in questo lavoro, ovvero la
+localizzazione di un oggetto tramite bounding box e la stima di punti
+anatomici, descritti nella Sezione~\ref{sec:architetture}.
+
+\subsection{Dal classificatore lineare alle reti neurali}
+\label{sec:dal_lineare_alle_reti}
+
+Il modello più semplice che realizza questo schema è il classificatore
+lineare, che calcola i punteggi delle classi come $f(x, W) = Wx + b$,
+dove $x$ è l'immagine in ingresso rappresentata come vettore, $W$ è una
+matrice di pesi e $b$ un termine costante. A ciascuna classe corrisponde
+una riga di $W$, che può essere interpretata come un modello di
+riferimento (\emph{template}) per quella categoria: il punteggio è tanto
+più alto quanto più l'immagine somiglia al template appreso.
+
+Questa impostazione ha però un limite strutturale: disponendo di un solo
+template per classe, il modello non riesce a rappresentare categorie che
+si presentano in forme diverse tra loro.
+
+Una rete neurale supera questo limite introducendo un calcolo
+gerarchico. Nella sua forma più semplice, una rete a due strati calcola
+$f = W_2 \max(0, W_1 x)$: il primo strato produce una rappresentazione
+intermedia, detta strato nascosto (\emph{hidden layer}), e il secondo la
+combina per ottenere i punteggi finali. In questo modo la rete apprende
+un numero molto maggiore di template intermedi e può condividerli tra
+più classi, componendoli anziché doverne associare uno solo a ciascuna
+categoria.
+
+L'elemento che rende possibile questa maggiore espressività è la
+funzione applicata tra i due strati, detta funzione di attivazione. La
+sua presenza è essenziale: se i due strati fossero puramente lineari, la
+loro composizione $W_2 W_1 x$ equivarrebbe a una singola matrice
+$W_3 = W_2 W_1$, e il modello tornerebbe a essere un classificatore
+lineare. Tra le varie funzioni di attivazione proposte in letteratura,
+la ReLU, definita come $\max(0, x)$, è quella comunemente adottata come
+scelta predefinita.
+
+Impilando più strati si ottiene una rete profonda. Gli strati in cui
+ogni unità è collegata a tutte le unità dello strato precedente sono
+detti completamente connessi (\emph{fully connected}), e il numero
+complessivo di unità determina la capacità del modello, ovvero la
+complessità delle funzioni che è in grado di rappresentare. Una capacità
+elevata comporta il rischio di \emph{overfitting}, cioè di adattarsi
+troppo ai dati di addestramento perdendo la capacità di generalizzare;
+il modo corretto di contenerlo non è però ridurre la dimensione della
+rete, ma agire sulla regolarizzazione, come descritto nella sezione
+seguente.
+
+\subsection{L'addestramento di una rete neurale}
+\label{sec:addestramento}
+
+Definita la struttura del modello, resta da determinare il valore dei
+suoi parametri. Il problema si affronta in due passi: si definisce una
+funzione di costo (\emph{loss}) che quantifica quanto i punteggi
+prodotti dal modello si discostano da quelli attesi sui dati di
+addestramento, e si cerca poi un metodo efficiente per trovare i
+parametri che la minimizzano.
+
+La loss complessiva è la media dei costi calcolati sui singoli esempi,
+alla quale si aggiunge un termine di regolarizzazione $\lambda R(W)$ che
+penalizza i pesi di valore elevato, dove $\lambda$ ne controlla
+l'intensità. Il primo termine spinge il modello ad aderire ai dati di
+addestramento, il secondo a non aderirvi eccessivamente, contenendo
+l'overfitting.
+
+La minimizzazione avviene per discesa del gradiente: si calcola la
+derivata della loss rispetto a ciascun parametro e si aggiornano i
+parametri nella direzione opposta al gradiente, ripetendo il
+procedimento fino a convergenza. In una rete profonda questi gradienti
+vengono calcolati in modo efficiente tramite l'algoritmo di
+\emph{backpropagation}, che propaga l'errore dall'uscita verso gli
+strati precedenti applicando la regola di derivazione delle funzioni
+composte.
+
+Poiché calcolare il gradiente sull'intero dataset a ogni passo sarebbe
+troppo oneroso, in pratica lo si stima su piccoli sottoinsiemi di
+campioni estratti casualmente, detti \emph{mini-batch}, comunemente di
+32, 64 o 128 elementi. Questa variante prende il nome di discesa del
+gradiente stocastica (SGD) e l'entità di ciascun aggiornamento è
+regolata da un parametro detto \emph{learning rate}. Un passaggio
+completo su tutti i dati di addestramento costituisce un'\emph{epoca}, e
+l'addestramento si protrae per un numero prefissato di epoche.
+
+La SGD nella sua forma base presenta alcune difficoltà: avanza lentamente
+lungo le direzioni in cui la loss varia poco, può arrestarsi in minimi
+locali o punti di sella, e risente della rumorosità del gradiente
+stimato su un singolo mini-batch. Per attenuare questi effetti si
+introduce il \emph{momentum}, che accumula una media mobile dei gradienti
+calcolati ai passi precedenti e la utilizza per determinare la direzione
+di avanzamento, con un coefficiente tipicamente pari a 0.9.
+
+\subsection{Reti neurali convoluzionali}
+% TODO: convoluzione, pooling, feature map, architetture profonde e ResNet
+% (CS231n lez. 5-6)
+
+\subsection{Transfer learning}
+% TODO: finetuning vs feature extraction, backbone pre-addestrati su ImageNet
+% (PyTorch Transfer Learning tutorial)
 
 \section{Approcci automatici alla stima dell'età ossea}
 % TODO: panoramica su approcci deep learning per bone age assessment
@@ -30,6 +173,7 @@ supera nettamente le prestazioni di un modello che analizza solo
 l'immagine intera.
 
 \section{Architetture di riferimento}
+\label{sec:architetture}
 
 \subsection{Faster R-CNN e ResNet}
 
