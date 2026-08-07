@@ -145,15 +145,42 @@ utilizza per determinare la direzione di avanzamento, con un
 coefficiente tipicamente pari a 0.9.
 
 \subsection{Reti neurali convoluzionali}
-% TODO: convoluzione, pooling, feature map, architetture profonde e ResNet
-% (CS231n lez. 5-6)
+
+I layer completamente connessi visti finora ricevono in input
+l'immagine ``appiattita'' in un vettore, perdendo così la struttura
+spaziale a due dimensioni dei pixel. I layer convoluzionali affrontano
+il problema in modo diverso: l'input resta un volume tridimensionale, e
+un filtro di dimensioni ridotte viene fatto scorrere su tutte le
+posizioni spaziali, calcolando a ogni posizione un prodotto scalare tra
+il filtro e la porzione di immagine sottostante. Questo permette alla
+rete di individuare pattern locali (bordi, texture) indipendentemente
+dalla loro posizione nell'immagine, mantenendo l'informazione spaziale
+che un layer fully-connected perderebbe.
 
 \subsection{Transfer learning}
-% TODO: finetuning vs feature extraction, backbone pre-addestrati su ImageNet
-% (PyTorch Transfer Learning tutorial)
+\label{sec:transfer_learning}
+
+Quando i dati di addestramento disponibili per un task specifico sono
+limitati, è comune riutilizzare un modello già addestrato su un dataset
+di grandi dimensioni (tipicamente ImageNet) invece di inizializzare i
+pesi casualmente, una pratica nota come \emph{transfer learning}. Sono
+possibili due strategie: la \emph{feature extraction}, in cui i pesi del
+modello pre-addestrato restano fissi e viene addestrato solo un nuovo
+layer finale specifico per il task; e il \emph{fine-tuning}, in cui
+l'intera rete, pesi pre-addestrati compresi, continua a essere
+aggiornata durante l'addestramento sul nuovo task.
 
 \section{Approcci automatici alla stima dell'età ossea}
-% TODO: panoramica su approcci deep learning per bone age assessment
+
+Prima dell'avvento del deep learning, lo strumento automatico più
+diffuso in ambito clinico è BoneXpert, un software commerciale
+sviluppato nel 2009 da Thodberg e Kreiborg, che stima l'età ossea
+tramite edge detection e active appearance models, basandosi sui
+criteri di Greulich-Pyle e Tanner-Whitehouse~\cite{escobar2019bonet}. Essendo stato sviluppato
+su una coorte di pazienti danesi, la sua affidabilità non è garantita
+su popolazioni con caratteristiche diverse, una limitazione che motiva,
+tra l'altro, la costruzione di dataset come RHPE su popolazioni diverse
+da quelle già coperte.
 
 \section{Il paradigma BoNet}
 \label{sec:paradigma_bonet}
@@ -194,12 +221,23 @@ in input queste proposte, classifica ciascuna regione e ne raffina la
 bounding box. In questo lavoro, coerentemente con il paper di
 riferimento, Faster R-CNN viene utilizzato con backbone
 ResNet-50~\cite{he2016resnet} dotato di \emph{Feature Pyramid Network}
-(FPN), un'estensione che combina le feature a diverse risoluzioni per
-riconoscere meglio oggetti di dimensioni molto diverse, pre-addestrato su
-ImageNet. ResNet introduce connessioni residue che permettono di
-addestrare reti molto profonde senza incontrare il problema della
-scomparsa del gradiente, rendendola una scelta comune come backbone per
-compiti di visione artificiale.
+(FPN)~\cite{lin2017fpn}, un'estensione che combina le feature a diverse
+risoluzioni per riconoscere meglio oggetti di dimensioni molto diverse,
+pre-addestrato su ImageNet.
+
+Impilare più layer convoluzionali non migliora le prestazioni in modo
+automatico: oltre una certa profondità, una rete ``semplice'' (senza
+accorgimenti particolari) ottiene un errore peggiore sia in training sia
+in test rispetto a una rete meno profonda, segno che il problema non è
+overfitting ma difficoltà di ottimizzazione. ResNet risolve questo
+problema introducendo connessioni residue: anziché far apprendere a un
+blocco di layer la trasformazione desiderata $H(x)$ direttamente, lo si
+fa apprendere il residuo $F(x) = H(x) - x$, sommato poi a $x$ tramite
+una connessione diretta (\emph{shortcut}). In questo modo, se i layer
+aggiuntivi non sono utili, è sufficiente che imparino $F(x) = 0$ per
+ottenere la funzione identità, garantendo che una rete più profonda non
+sia mai peggiore di una più superficiale. Questo rende ResNet una
+scelta comune come backbone per compiti di visione artificiale.
 
 \subsection{Keypoint estimation: Simple Baselines e Keypoint R-CNN}
 
@@ -219,5 +257,25 @@ keypoint estimation in un'unica rete, individuando prima le regioni
 candidate con la RPN e poi predicendo i keypoint direttamente su ciascuna
 di esse.
 
+Entrambe le architetture vengono utilizzate in questo lavoro tramite
+\emph{fine-tuning} (Sez.~\ref{sec:transfer_learning}): il backbone
+ResNet-50 pre-addestrato su ImageNet viene mantenuto, ma l'ultimo layer
+specifico per il task viene sostituito con uno nuovo, dimensionato per
+il numero di classi o di keypoint del problema, e l'intera rete viene
+poi addestrata end-to-end sul dataset RHPE. Il fine-tuning è
+generalmente preferibile alla feature extraction quando il dominio delle
+immagini di destinazione si discosta significativamente da quello di
+pre-addestramento, permettendo alla rete di adattare anche le feature di
+più basso livello: le radiografie del dataset RHPE, in scala di grigi e
+con caratteristiche visive molto diverse dalle fotografie naturali di
+ImageNet, rientrano in questo caso.
+
 \section{Dataset di riferimento}
-% TODO: RSNA \cite{halabi2019rsna} e RHPE
+
+Il dataset RHPE (Radiological Hand Pose Estimation), utilizzato in
+questo lavoro, è composto da radiografie della mano di pazienti
+pediatrici della Fundación Santa Fe de Bogotá (Colombia), annotate con
+bounding box della mano sinistra (non dominante) e posizione dei 17
+keypoint anatomici utilizzati dal paradigma BoNet, oltre all'età ossea
+(stabilita da due radiologi esperti per ciascun paziente), età
+cronologica e genere.
