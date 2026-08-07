@@ -5,7 +5,8 @@
 \label{sec:fondamenti_nn}
 
 Tutti i modelli utilizzati in questo lavoro sono reti neurali
-convoluzionali. Questa sezione ne introduce il funzionamento partendo
+convoluzionali. Questa sezione ne introduce il funzionamento, seguendo
+l'impostazione di~\cite{goodfellow2016deep}, partendo
 dal problema di base della visione artificiale, la classificazione di
 immagini, per arrivare agli elementi che ricorrono nei capitoli
 successivi: le architetture convoluzionali, il modo in cui vengono
@@ -79,8 +80,8 @@ sua presenza è essenziale: se i due strati fossero puramente lineari, la
 loro composizione $W_2 W_1 x$ equivarrebbe a una singola matrice
 $W_3 = W_2 W_1$, e il modello tornerebbe a essere un classificatore
 lineare. Tra le varie funzioni di attivazione proposte in letteratura,
-la ReLU, definita come $\max(0, x)$, è quella comunemente adottata come
-scelta predefinita.
+la ReLU~\cite{nair2010relu}, definita come $\max(0, x)$, è quella
+comunemente adottata come scelta predefinita.
 
 Impilando più strati si ottiene una rete profonda. Gli strati in cui
 ogni unità è collegata a tutte le unità dello strato precedente sono
@@ -106,9 +107,10 @@ parametri che la minimizzano.
 La loss complessiva è la media dei costi calcolati sui singoli esempi,
 alla quale si aggiunge un termine di regolarizzazione $\lambda R(W)$ che
 penalizza i pesi di valore elevato, dove $\lambda$ ne controlla
-l'intensità. Il primo termine spinge il modello ad aderire ai dati di
-addestramento, il secondo a non aderirvi eccessivamente, contenendo
-l'overfitting.
+l'intensità; quando $R(W)$ è la somma dei quadrati dei pesi, questo
+termine è comunemente indicato come \emph{weight decay}. Il primo
+termine spinge il modello ad aderire ai dati di addestramento, il
+secondo a non aderirvi eccessivamente, contenendo l'overfitting.
 
 La minimizzazione avviene per discesa del gradiente: si calcola la
 derivata della loss rispetto a ciascun parametro e si aggiornano i
@@ -117,24 +119,30 @@ procedimento fino a convergenza. In una rete profonda questi gradienti
 vengono calcolati in modo efficiente tramite l'algoritmo di
 \emph{backpropagation}, che propaga l'errore dall'uscita verso gli
 strati precedenti applicando la regola di derivazione delle funzioni
-composte.
+composte~\cite{rumelhart1986backprop}.
 
 Poiché calcolare il gradiente sull'intero dataset a ogni passo sarebbe
 troppo oneroso, in pratica lo si stima su piccoli sottoinsiemi di
-campioni estratti casualmente, detti \emph{mini-batch}, comunemente di
-32, 64 o 128 elementi. Questa variante prende il nome di discesa del
-gradiente stocastica (SGD) e l'entità di ciascun aggiornamento è
+campioni estratti casualmente, detti \emph{mini-batch}, la cui dimensione
+(\emph{batch size}) è comunemente di 32, 64 o 128 elementi. Questa
+variante prende il nome di discesa del gradiente stocastica (SGD), e
+ciascun aggiornamento dei parametri calcolato su un mini-batch è detto
+\emph{iterazione}: la loss può quindi essere valutata e ridotta più
+volte all'interno della stessa epoca, non solo al termine di un
+passaggio completo sui dati. L'entità di ciascun aggiornamento è
 regolata da un parametro detto \emph{learning rate}. Un passaggio
 completo su tutti i dati di addestramento costituisce un'\emph{epoca}, e
-l'addestramento si protrae per un numero prefissato di epoche.
+l'addestramento si protrae per un numero prefissato di epoche oppure di
+iterazioni.
 
 La SGD nella sua forma base presenta alcune difficoltà: avanza lentamente
 lungo le direzioni in cui la loss varia poco, può arrestarsi in minimi
 locali o punti di sella, e risente della rumorosità del gradiente
 stimato su un singolo mini-batch. Per attenuare questi effetti si
-introduce il \emph{momentum}, che accumula una media mobile dei gradienti
-calcolati ai passi precedenti e la utilizza per determinare la direzione
-di avanzamento, con un coefficiente tipicamente pari a 0.9.
+introduce il \emph{momentum}~\cite{sutskever2013momentum}, che accumula
+una media mobile dei gradienti calcolati ai passi precedenti e la
+utilizza per determinare la direzione di avanzamento, con un
+coefficiente tipicamente pari a 0.9.
 
 \subsection{Reti neurali convoluzionali}
 % TODO: convoluzione, pooling, feature map, architetture profonde e ResNet
