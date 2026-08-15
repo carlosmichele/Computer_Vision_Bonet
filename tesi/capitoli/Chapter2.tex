@@ -6,7 +6,8 @@
 
 Il dataset RHPE (Radiological Hand Pose Estimation) è composto da radiografie
 della mano di pazienti pediatrici, suddivise nei tre split standard di
-training, validation e test. Le annotazioni sono fornite in due formati:
+training, validation e test (Sez.~\ref{sec:classificazione}). Le
+annotazioni sono fornite in due formati:
 
 \begin{itemize}
     \item \textbf{JSON (formato COCO):} bounding box della mano e 17
@@ -50,7 +51,7 @@ Test  & 79   & 38 (48.1\%)   & 41 (51.9\%)   \\
 Il primo stadio della pipeline consiste nel localizzare automaticamente la
 mano nell'immagine tramite bounding box. Seguendo il paper BoNet, il
 modello scelto è Faster R-CNN con backbone ResNet-50 FPN, pre-addestrato su
-ImageNet. L'architettura viene adattata al task tramite fine-tuning:
+ImageNet (Sez.~\ref{sec:architetture}). L'architettura viene adattata al task tramite fine-tuning:
 l'ultimo layer (\texttt{box\_predictor}), originariamente configurato per
 91 classi (dataset COCO), viene sostituito con uno nuovo per 2 classi
 (background e mano).
@@ -88,9 +89,41 @@ disallineamenti tra le immagini e le relative annotazioni.
 Gli iperparametri di training sono stati allineati a quelli riportati nel
 paper BoNet: ottimizzatore SGD con learning rate costante pari a
 $2.5\times10^{-3}$, momentum 0.9 e weight decay $5\times10^{-4}$, per un
-totale di 5000 iterazioni con batch size 4. Il modello viene valutato al
-termine di ogni epoca sul validation set, e viene mantenuto quello con la
-mAP@[.5:.95] più alta.
+totale di 5000 iterazioni con batch size 4 (Sez.~\ref{sec:iou_map} per
+la definizione di mAP@[.5:.95], usata per selezionare il modello
+migliore come descritto di seguito).
+
+\subsection{Ciclo di addestramento}
+
+Ad ogni iterazione, il modello riceve in input un mini-batch di immagini
+e i relativi target, ciascuno costituito dalla bounding box (convertita
+dal formato COCO $[x, y, w, h]$ al formato $[x_1, y_1, x_2, y_2]$
+atteso da torchvision) e da un'etichetta di classe, sempre pari a 1
+poiché è definita un'unica classe di primo piano (\emph{mano}). Poiché
+il numero di oggetti annotati per immagine può variare, le immagini di
+un batch non possono essere impilate direttamente in un unico tensore
+come fa di default il \texttt{DataLoader}: viene quindi fornita una
+funzione di collazione dedicata, che si limita a raccogliere immagini e
+target in due liste separate anziché impilarli.
+
+Il comportamento dei modelli di detection di torchvision dipende dalla
+modalità in cui si trovano: in modalità di addestramento (\texttt{model.train()}),
+avendo a disposizione i target, il modello non restituisce predizioni
+ma un dizionario con quattro componenti di loss (relative a
+classificazione, regressione della bounding box, objectness e
+raffinamento delle proposte della RPN), la cui somma costituisce la
+loss totale su cui viene calcolato il gradiente; in modalità di
+valutazione (\texttt{model.eval()}) restituisce invece le predizioni.
+
+Le 5000 iterazioni indicate dal paper BoNet si riferiscono a singoli
+passi di aggiornamento dei parametri, non a epoche complete. Con un
+sottoinsieme di sole 250 immagini di training e batch size 4, un'epoca
+corrisponde a $\lceil 250/4 \rceil = 63$ iterazioni (l'ultimo batch
+dell'epoca contiene solo 2 immagini); raggiungere le 5000 iterazioni
+richiede quindi di ripercorrere lo stesso sottoinsieme circa 80 volte.
+Al termine di ogni epoca il modello viene valutato sul validation set, e
+i pesi vengono salvati solo se la mAP@[.5:.95] migliora rispetto al
+massimo osservato fino a quel momento.
 
 \section{Keypoint Estimation}
 \label{sec:keypoint_estimation}
@@ -102,14 +135,12 @@ ResNet-50, un'architettura encoder-decoder che riceve in input un crop
 della mano e produce 17 heatmap tramite layer deconvoluzionali.
 
 Per questo lavoro si è scelto di utilizzare Keypoint
-R-CNN~\cite{he2017maskrcnn}, già disponibile in torchvision, come
-alternativa pragmatica a Simple Baselines. La scelta, concordata con il
-supervisore, è motivata da: interfaccia analoga a Faster R-CNN (già
-utilizzato per la detection), disponibilità immediata senza necessità di
-implementare l'architettura da zero. La differenza principale rispetto al
-paper è che Keypoint R-CNN integra detection e keypoint estimation in
-un'unica rete, mentre Simple Baselines richiede un crop già estratto in
-input.
+R-CNN~\cite{he2017maskrcnn} (Sez.~\ref{sec:architetture}), già
+disponibile in torchvision, come alternativa pragmatica a Simple
+Baselines. La scelta, concordata con il supervisore, è motivata da:
+interfaccia analoga a Faster R-CNN (già utilizzato per la detection) e
+disponibilità immediata senza necessità di implementare l'architettura
+da zero.
 
 \subsection{Quattro varianti di modello}
 \label{sec:varianti_modello}
@@ -186,24 +217,20 @@ qualitativa, tramite ispezione visiva delle predizioni.
 \section{Metriche di valutazione}
 \label{sec:metriche}
 
-Per la hand detection viene utilizzata la mean Average Precision (mAP)
-basata su Intersection over Union (IoU), calcolata con la libreria
-\texttt{torchmetrics}.
-
-Per la keypoint estimation, la metrica standard è la mAP/mAR basata su
-\emph{Object Keypoint Similarity} (OKS)~\cite{lin2014coco}, analoga alla
-mAP per detection ma che sostituisce l'IoU con una misura di similarità
-tra punti, pesata da un parametro $\sigma$ specifico per ciascun
-keypoint. La libreria \texttt{torchmetrics} (v1.5.2) non supporta
-\texttt{iou\_type='keypoints'}; la valutazione OKS è stata quindi
-implementata direttamente con \texttt{pycocotools.cocoeval.COCOeval}.
+Le definizioni di IoU, mAP, mAR e OKS utilizzate in questo lavoro sono
+descritte in Sez.~\ref{sec:iou_map}. Per la hand detection, mAP e mAR
+vengono calcolate con la libreria \texttt{torchmetrics}. Per la
+keypoint estimation, la libreria \texttt{torchmetrics} (v1.5.2) non
+supporta \texttt{iou\_type='keypoints'}; la valutazione basata su OKS è
+stata quindi implementata direttamente con
+\texttt{pycocotools.cocoeval.COCOeval}.
 
 \subsection{Sigma OKS}
 \label{sec:sigma_oks}
 
 Il parametro $\sigma$ regola la severità della metrica OKS: valori più
 piccoli penalizzano più duramente piccoli errori di posizionamento. I
-sigma standard definiti per il dataset COCO~\cite{lin2014coco} sono
+sigma standard definiti per il dataset COCO~\cite{ronchi2017benchmarking} sono
 calibrati sui keypoint del corpo umano e non hanno un equivalente diretto
 per i keypoint anatomici della mano.
 
