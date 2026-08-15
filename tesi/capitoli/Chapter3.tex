@@ -6,7 +6,7 @@
 
 \begin{table}[h]
 \centering
-\caption{Risultati del modello di hand detection sui tre split.}
+\caption{Risultati del modello di hand detection sui tre split. La mAP è calcolata su soglie di IoU (Sez.~\ref{sec:iou_map}).}
 \label{tab:risultati_bbox}
 \begin{tabular}{lccc}
 \toprule
@@ -46,7 +46,7 @@ sigma OKS reali del paper (Tabella~\ref{tab:sigma_oks}).
 
 \begin{table}[htbp]
 \centering
-\caption{Risultati di keypoint estimation, sigma OKS reali. Le celle in cui la modalità di valutazione coincide con il dominio di training del modello sono evidenziate concettualmente nel testo.}
+\caption{Risultati di keypoint estimation, sigma OKS reali. La mAP è calcolata su soglie di OKS, non di IoU (Sez.~\ref{sec:iou_map}). Le celle in cui la modalità di valutazione coincide con il dominio di training del modello sono evidenziate concettualmente nel testo.}
 \label{tab:risultati_keypoint_completo}
 \small
 \begin{tabular}{llccccc}
