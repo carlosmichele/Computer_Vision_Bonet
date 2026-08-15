@@ -1,20 +1,58 @@
 \chapter*{Introduzione}
 \addcontentsline{toc}{chapter}{Introduzione}
 
-% TODO: contesto clinico — bone age assessment, perché è rilevante
-% (valutazione della crescita, diagnosi endocrinologiche, medicina legale/forense)
+La stima dell'età ossea è una procedura radiologica che confronta il
+grado di maturazione scheletrica della mano di un paziente pediatrico,
+osservabile da una radiografia, con la sua età anagrafica. La
+discrepanza tra le due età è un indicatore clinico utilizzato nella
+diagnosi di disturbi della crescita e di patologie endocrinologiche,
+nel monitoraggio di terapie ormonali e, in ambito medico-legale, nella
+stima dell'età di individui privi di documentazione anagrafica
+affidabile.
 
-% TODO: metodo clinico standard (Greulich-Pyle / Tanner-Whitehouse) e limiti
-% (soggettività, tempo richiesto, variabilità inter-osservatore)
+I metodi clinici di riferimento sono il metodo Greulich-Pyle, che
+confronta la radiografia con un atlante di immagini rappresentative per
+ciascuna età, e il metodo Tanner-Whitehouse (TW2), che assegna un
+punteggio di maturazione a un insieme di regioni ossee della mano
+analizzate singolarmente. Entrambi
+richiedono la valutazione soggettiva di un radiologo esperto e
+presentano una variabilità inter- e intra-osservatore non trascurabile,
+oltre a tempi di refertazione non immediati.
 
-% TODO: motivazione dell'automazione tramite deep learning
+Questi limiti motivano l'automazione della stima dell'età ossea tramite
+tecniche di deep learning, con l'obiettivo di fornire una stima
+oggettiva, riproducibile e rapida a partire dalla sola immagine
+radiografica.
 
 \section*{Obiettivi della tesi}
-% TODO: obiettivo — replicare/estendere l'approccio BoNet sul dataset RHPE,
-% seguendo il pipeline in tre stadi (detection, keypoint estimation, age assessment)
+
+Questo lavoro si propone di replicare ed estendere l'approccio proposto
+nel paper BoNet~\cite{escobar2019bonet} (Sez.~\ref{sec:paradigma_bonet}),
+che affronta la stima dell'età ossea tramite un pipeline in tre stadi:
+hand detection, keypoint estimation e bone age assessment. Il lavoro è
+condotto sul dataset RHPE, utilizzato dagli stessi autori del paper di
+riferimento.
+
+Poiché la repository ufficiale del paper non include pesi
+pre-addestrati, l'obiettivo pratico è addestrare da zero i modelli dei
+primi due stadi del pipeline e confrontare i risultati ottenuti con
+quelli riportati dagli autori. A partire da questa replica, il lavoro
+introduce un'estensione originale non trattata nel paper: la predizione
+dei keypoint su entrambe le mani presenti in una radiografia,
+nonostante le annotazioni RHPE coprano esclusivamente la mano sinistra.
 
 \section*{Struttura del documento}
-% TODO: breve overview dei capitoli successivi
+
+Il Capitolo~\ref{chap:stato_arte} fornisce i concetti di base di reti
+neurali e apprendimento profondo necessari a comprendere il resto del
+lavoro, inquadra il problema della stima dell'età ossea nel contesto
+della letteratura e presenta il paradigma BoNet e le architetture di
+riferimento utilizzate. Il Capitolo~\ref{chap:materiali_metodi} descrive
+il dataset, le scelte metodologiche e gli iperparametri adottati. Il
+Capitolo~\ref{chap:risultati} riporta i risultati sperimentali. Il
+Capitolo~\ref{chap:discussione} discute tali risultati e ne evidenzia i
+limiti. Il Capitolo~\ref{chap:conclusioni} riassume i contributi e
+delinea gli sviluppi futuri.
 
 \newpage
 $ $
