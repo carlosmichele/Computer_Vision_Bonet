@@ -270,6 +270,50 @@ più basso livello: le radiografie del dataset RHPE, in scala di grigi e
 con caratteristiche visive molto diverse dalle fotografie naturali di
 ImageNet, rientrano in questo caso.
 
+\subsection{Valutare detection e keypoint estimation: IoU, mAP e OKS}
+\label{sec:iou_map}
+
+Per decidere se una bounding box predetta sia sufficientemente vicina a
+quella reale serve una misura di similarità e una soglia oltre la quale
+considerare la predizione corretta. Per i box la misura utilizzata è
+l'Intersection over Union (IoU): il rapporto tra l'area di
+sovrapposizione tra predizione e ground truth e l'area della loro
+unione, pari a 1 quando le due box coincidono e a 0 quando non si
+sovrappongono affatto. Una soglia IoU di 0.5 richiede che le due box si
+sovrappongano per almeno metà della loro area unita per essere contate
+come corrette; una soglia di 0.95 richiede una sovrapposizione quasi
+perfetta.
+
+Fissata una soglia, si ordinano le predizioni del modello per punteggio
+di confidenza e si varia via via quante accettarne: al crescere della
+soglia di confidenza cambiano sia la precisione (quale frazione delle
+predizioni accettate è corretta) sia il richiamo (quale frazione degli
+oggetti reali viene individuata), tracciando una curva
+precisione-richiamo. L'area sottesa a questa curva è l'\emph{Average
+Precision} (AP) per una classe; mediando le AP su tutte le classi si
+ottiene la mean Average Precision (mAP) e, allo stesso modo, la mean
+Average Recall (mAR). Nei task di questo lavoro esiste una sola classe
+di primo piano (la mano), per cui la mAP coincide numericamente con
+l'AP.
+
+La notazione mAP@.50 indica l'AP calcolata con un'unica soglia IoU pari
+a 0.5; mAP@[.5:.95] indica invece che l'AP viene calcolata su dieci
+soglie IoU (da 0.5 a 0.95, con passo 0.05) e mediata, risultando quindi
+più severa: penalizza anche le predizioni imprecise, non solo quelle
+completamente sbagliate.
+
+Per la keypoint estimation la misura di similarità analoga è l'Object
+Keypoint Similarity (OKS)~\cite{ronchi2017benchmarking}: anziché
+un'area di sovrapposizione, misura la distanza tra il keypoint predetto
+e quello reale, normalizzata rispetto alla scala dell'oggetto e a un
+parametro $\sigma$ specifico per ciascun keypoint
+(Sez.~\ref{sec:sigma_oks}). La notazione mAP@[.5:.95] si applica allo
+stesso modo, sostituendo semplicemente le soglie di IoU con soglie di
+OKS: è quindi la stessa ricetta di calcolo applicata a una misura di
+similarità diversa, non una metrica diversa. Nei risultati riportati nel
+Capitolo~\ref{chap:risultati}, la mAP calcolata sui box è sempre basata
+su IoU e quella calcolata sui keypoint su OKS.
+
 \section{Dataset di riferimento}
 
 Il dataset RHPE (Radiological Hand Pose Estimation)~\cite{escobar2019bonet},
