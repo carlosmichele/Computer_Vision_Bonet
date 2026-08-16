@@ -4,7 +4,7 @@
 \section{Hand Detection}
 \label{sec:risultati_detection}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Risultati del modello di hand detection sui tre split. La mAP è calcolata su soglie di IoU (Sez.~\ref{sec:iou_map}).}
 \label{tab:risultati_bbox}
@@ -20,11 +20,12 @@ Test  & 0.9219 & 0.9791 & 0.9791 \\
 \end{table}
 
 I risultati sono consistenti tra i tre split, senza segnali di
-overfitting. Il paper BoNet riporta mAP@[.5:.95] = 90.1\% sul validation
-set con l'intero training set; il valore ottenuto (88.56\%) è comparabile
+overfitting. Il paper BoNet~\cite{escobar2019bonet} riporta
+mAP@[.5:.95] = 90.1\% sul validation set con l'intero training set; il
+valore ottenuto (88.56\%) è comparabile
 nonostante l'addestramento su un sottoinsieme di sole 250 immagini.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.32\textwidth]{figure/esempiobbox1.jpg}\hfill
 \includegraphics[width=0.32\textwidth]{figure/esempiobbox2.jpg}\hfill
@@ -69,8 +70,6 @@ Test & mirrored\_full & det\_crop & 0.5606 & 0.9322 & 0.6470 & 0.6089 \\
 \end{tabular}
 \end{table}
 
-% TODO: aggiungere anche train/val se utile, vedi tabella completa nel diario
-
 Emergono due pattern principali:
 
 \begin{enumerate}
@@ -91,11 +90,12 @@ Emergono due pattern principali:
     progettazione (Sez.~\ref{sec:varianti_modello}).
 \end{enumerate}
 
-Confrontando con il paper BoNet (mAP@[.5:.95] $\approx$ 0.808 con
-bounding box ground truth, sull'intero dataset di training), i risultati
-ottenuti su un sottoinsieme di 250 immagini (\texttt{gt\_crop} in
-modalità \texttt{gt\_crop}: 0.704; \texttt{mirrored} in modalità
-\texttt{gt\_crop}: 0.640) risultano comparabili, tenendo conto della
+Confrontando con il paper BoNet~\cite{escobar2019bonet} (mAP@[.5:.95]
+$=$ 0.814 con bounding box ground truth sul dataset RHPE, sull'intero
+training set), i risultati ottenuti su un sottoinsieme di 250 immagini
+(\texttt{gt\_crop} in modalità \texttt{gt\_crop}: 0.704; \texttt{mirrored}
+in modalità \texttt{gt\_crop}: 0.640) risultano comparabili, tenendo
+conto della
 significativa riduzione del dataset di training.
 
 \begin{figure}[htbp]
@@ -115,17 +115,17 @@ sinistra), \texttt{gt\_crop}/\texttt{gt\_crop} (in alto a destra),
 \section{Esplorazione qualitativa: entrambe le mani}
 \label{sec:esplorazione_dx}
 
-Poiché il test set RHPE non include ground truth per la mano destra, la
-capacità dei modelli di predire correttamente i keypoint su entrambe le
-mani nella stessa immagine è stata valutata qualitativamente, tramite
-quattro approcci successivi:
+Poiché il test set RHPE non include ground truth per la mano destra, i
+quattro approcci descritti in Sez.~\ref{sec:esplorazione_dx_metodo} sono
+stati valutati qualitativamente, tramite ispezione visiva delle
+predizioni su un campione di 5 immagini di test:
 
 \begin{description}
-    \item[v1] detection con il modello \texttt{full} sull'immagine
-    intera (prime due predizioni per score), keypoint con
-    \texttt{mirrored} su ciascun crop rilevato. Il modello \texttt{full}
-    non generalizza alla ricerca di una seconda mano, non avendo mai
-    visto più di una bounding box per immagine in training.
+    \item[v1] Il modello \texttt{full} non generalizza alla ricerca di
+    una seconda mano, non avendo mai visto più di una bounding box per
+    immagine in training: le detection aggiuntive ottengono punteggi
+    molto bassi (0.06--0.13) e in alcuni casi corrispondono a doppioni
+    della stessa mano sinistra, non alla destra.
 \end{description}
 
 \begin{figure}[H]
@@ -138,11 +138,10 @@ con \texttt{mirrored}.}
 \end{figure}
 
 \begin{description}
-    \item[v2] immagine divisa verticalmente a metà, detection con
-    \texttt{full} eseguita separatamente su ciascuna metà, keypoint con
-    \texttt{mirrored}. Risultati incostanti: la mano destra viene
-    rilevata con buon punteggio in alcuni casi, con punteggio molto
-    basso o nullo in altri.
+    \item[v2] Risultati incostanti: la mano destra viene rilevata con
+    buon punteggio in 2 immagini su 5, con punteggio molto basso
+    (0.09--0.31, sotto soglia) in altre 2, e nessuna detection nella
+    restante.
 \end{description}
 
 \begin{figure}[H]
@@ -155,12 +154,11 @@ ciascuna metà, keypoint con \texttt{mirrored}.}
 \end{figure}
 
 \begin{description}
-    \item[v3] stessa suddivisione a metà, ma sia detection che keypoint
-    affidati al modello \texttt{mirrored}. La detection diventa
-    affidabile su entrambe le metà (punteggi $>0.98$), ma i keypoint
-    predetti risultano errati su entrambe le mani, coerentemente con il
-    limite di generalizzazione di \texttt{mirrored} discusso in
-    Sez.~\ref{sec:varianti_modello}.
+    \item[v3] La detection diventa affidabile su entrambe le metà, con
+    punteggi superiori a 0.98 su tutte e 5 le immagini del campione, ma
+    a un'ispezione visiva i keypoint predetti appaiono errati su
+    entrambe le mani, coerentemente con il limite di generalizzazione
+    di \texttt{mirrored} discusso in Sez.~\ref{sec:varianti_modello}.
 \end{description}
 
 \begin{figure}[H]
@@ -173,10 +171,10 @@ ciascuna metà, keypoint con \texttt{mirrored}.}
 \end{figure}
 
 \begin{description}
-    \item[v4] singolo passaggio in avanti (\emph{forward pass})
-    sull'immagine intera con il modello \texttt{mirrored\_full}, che
-    produce direttamente detection e keypoint per entrambe le mani senza
-    necessità di suddivisione dell'immagine o pipeline a più stadi.
+    \item[v4] Produce direttamente detection e keypoint che, a
+    un'ispezione visiva, appaiono corretti per entrambe le mani, in un
+    unico passaggio: a differenza di v3, qui anche i keypoint appaiono
+    corretti e non solo la detection.
 \end{description}
 
 \begin{figure}[H]
