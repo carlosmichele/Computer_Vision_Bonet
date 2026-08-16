@@ -240,7 +240,17 @@ qualitativa, tramite ispezione visiva delle predizioni.
 Al di là del confronto quantitativo tra le quattro varianti di modello,
 è stata condotta un'esplorazione qualitativa mirata a ottenere keypoint
 corretti su entrambe le mani nella stessa immagine, attraverso quattro
-approcci successivi, ciascuno motivato dai limiti del precedente.
+approcci successivi, ciascuno motivato dai limiti del precedente. Il
+punteggio di confidenza associato a ciascuna detection, citato più
+volte nel seguito, è l'output diretto del classificatore del modello
+(la probabilità stimata che una regione contenga una mano), calcolato
+allo stesso modo indipendentemente dalla disponibilità di un ground
+truth. In questa esplorazione qualitativa le predizioni non vengono
+infatti confrontate con alcuna annotazione di riferimento, né per la
+mano sinistra né per la destra: il confronto quantitativo con il
+ground truth disponibile per la mano sinistra è invece descritto in
+Sez.~\ref{sec:metriche}, ed è quello alla base dei risultati riportati
+nella Tabella~\ref{tab:risultati_keypoint_completo}.
 
 \begin{description}
     \item[v1] Come primo tentativo, la mano destra viene cercata
