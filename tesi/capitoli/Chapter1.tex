@@ -172,11 +172,11 @@ aggiornata durante l'addestramento sul nuovo task.
 
 \section{Approcci automatici alla stima dell'età ossea}
 
-Prima dell'avvento del deep learning, lo strumento automatico più
-diffuso in ambito clinico è BoneXpert, un software commerciale
-sviluppato nel 2009 da Thodberg e Kreiborg, che stima l'età ossea
-tramite edge detection e active appearance models, basandosi sui
-criteri di Greulich-Pyle e Tanner-Whitehouse~\cite{escobar2019bonet}. Essendo stato sviluppato
+Prima dell'avvento del deep learning, uno strumento automatico diffuso
+in ambito clinico è BoneXpert, un software commerciale sviluppato nel
+2009 da Thodberg e Kreiborg, che stima l'età ossea tramite edge
+detection e active appearance models, basandosi sui criteri di
+G\&P e TW2~\cite{escobar2019bonet}. Essendo stato sviluppato
 su una coorte di pazienti danesi, la sua affidabilità non è garantita
 su popolazioni con caratteristiche diverse, una limitazione che motiva,
 tra l'altro, la costruzione di dataset come RHPE su popolazioni diverse
@@ -188,12 +188,15 @@ da quelle già coperte.
 Il paradigma proposto da BoNet~\cite{escobar2019bonet} nasce da
 un'osservazione: i metodi clinici più precisi per la stima dell'età
 ossea, come il TW2, si basano su un'analisi locale di specifiche regioni
-anatomiche della mano, mentre la maggior parte degli approcci automatici
-esistenti al momento della pubblicazione analizzava l'immagine
-radiografica nella sua interezza, senza sfruttare informazioni locali.
-Gli autori propongono quindi di introdurre la stima di keypoint
-anatomici come nuovo task, per fornire al sistema un'informazione locale
-simile a quella usata dai radiologi.
+anatomiche della mano. Sebbene alcuni approcci automatici esistenti al
+momento della pubblicazione tentassero già di sfruttare informazione
+locale, i dataset di bone age assessment disponibili fornivano
+annotazioni solo a livello di immagine intera, senza indicare le
+regioni anatomiche rilevanti, rendendo difficile un'analisi locale
+precisa e sistematica come quella dei metodi clinici manuali. Gli
+autori propongono quindi di introdurre la stima di keypoint anatomici
+come nuovo task, per fornire al sistema un'informazione locale
+precisamente localizzata, in modo analogo a quella usata dai radiologi.
 
 La pipeline è organizzata in tre stadi: prima la mano viene localizzata
 nell'immagine (hand detection), poi vengono stimati 17 keypoint
