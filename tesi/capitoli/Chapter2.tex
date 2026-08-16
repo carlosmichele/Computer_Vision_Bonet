@@ -20,10 +20,19 @@ annotazioni sono fornite in due formati:
 Il test set non include l'età ossea, poiché è il valore che il sistema deve
 predire.
 
+Le radiografie della mano acquisite in ambito clinico mostrano
+tipicamente entrambe le mani sulla stessa immagine, per permettere un
+confronto diretto tra i due lati, ed è così anche per le immagini
+fornite da RHPE: ogni file mostra entrambe le mani, ma le annotazioni
+(bounding box e keypoint) riguardano esclusivamente la mano sinistra
+(non dominante), presente per convenzione nella metà sinistra
+dell'immagine. Questo aspetto è rilevante per il lavoro di estensione
+alla mano destra descritto in Sez.~\ref{sec:esplorazione_dx_metodo}.
+
 \subsection{Analisi esplorativa}
 \label{sec:eda}
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Distribuzione del dataset RHPE per split.}
 \label{tab:dataset_split}
@@ -38,7 +47,7 @@ Test  & 79   & 38 (48.1\%)   & 41 (51.9\%)   \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{figure/distribuzione_eta.jpg}
 \caption{Distribuzione di bone age ed età cronologica sui tre split del dataset RHPE.}
@@ -162,7 +171,7 @@ ciascuna con una diversa strategia di training:
 
     \item[\texttt{mirrored}] estensione di \texttt{gt\_crop} pensata per
     predire keypoint anche sulla mano destra, assente nelle annotazioni
-    RHPE (che copre solo la mano sinistra/non dominante). Per ogni
+    RHPE (Sez.~\ref{sec:dataset}). Per ogni
     immagine di training, oltre al crop originale viene aggiunta una
     versione specchiata orizzontalmente (tramite \texttt{ImageOps.mirror}),
     con le coordinate $x$ dei keypoint ribaltate come $x' = w - x$
@@ -170,17 +179,16 @@ ciascuna con una diversa strategia di training:
     così da 250 a 500 campioni.
 
     \item[\texttt{mirrored\_full}] stessa idea di \texttt{mirrored}, ma
-    applicata all'immagine intera anziché al crop: bounding box e
-    keypoint vengono specchiati usando la larghezza dell'intera immagine
+    applicata all'immagine intera anziché al crop, e quindi in grado di
+    eseguire detection e keypoint estimation in un unico passaggio come
+    il modello \texttt{full}: bounding box e keypoint vengono specchiati
+    usando la larghezza dell'intera immagine
     ($x' = W - x$) invece della larghezza del crop. Questa variante è
     stata introdotta per risolvere un limite di \texttt{mirrored}: quel
     modello, avendo visto in training solo crop già stretti attorno alla
     mano (con bounding box target sempre coincidente con l'intero
     input), non aveva mai imparato a localizzare con precisione una mano
-    all'interno di un contesto più ampio con sfondo. \texttt{mirrored\_full}
-    impara invece a fare detection e keypoint estimation per entrambe le
-    mani (sinistra e destra) in un unico passaggio, senza necessità di
-    dividere l'immagine o utilizzare una pipeline a più stadi.
+    all'interno di un contesto più ampio con sfondo (Sez.~\ref{sec:esplorazione_dx_metodo}).
 \end{description}
 
 \subsection{Campionamento e iperparametri}
@@ -198,11 +206,23 @@ quindi optato per SGD con iperparametri standard per questa famiglia di
 modelli (learning rate $5\times10^{-3}$, momentum 0.9, weight decay
 $5\times10^{-4}$), mantenendo le 20 epoche indicate dal paper.
 
+\subsection{Ciclo di addestramento}
+
+Rispetto alla hand detection, il target di ciascuna immagine include
+anche i keypoint, rappresentati come un tensore di forma $(1, 17, 3)$:
+per ciascuno dei 17 keypoint anatomici, le prime due componenti sono le
+coordinate $(x, y)$ e la terza è un flag di visibilità. In modalità di
+addestramento, il modello restituisce quindi un dizionario con cinque
+componenti di loss anziché quattro: alle stesse quattro della hand
+detection (Sez.~\ref{sec:hand_detection}) si aggiunge una loss
+specifica per i keypoint, e la somma delle cinque costituisce la loss
+totale su cui viene calcolato il gradiente.
+
 \subsection{Estensione alla mano destra tramite mirroring}
 \label{sec:mirroring}
 
 Poiché le annotazioni RHPE coprono esclusivamente la mano sinistra
-(non dominante), l'unico modo per ottenere dati di training con
+(Sez.~\ref{sec:dataset}), l'unico modo per ottenere dati di training con
 ground truth per la mano destra è generarli sinteticamente tramite
 specchiamento orizzontale, sia dell'immagine che delle coordinate dei
 keypoint. Questa strategia, concordata con il supervisore, è stata
@@ -213,6 +233,48 @@ qualitativamente diversi discussi nel Capitolo~\ref{chap:risultati}.
 La valutazione quantitativa sulla mano destra non è possibile, in
 assenza di ground truth nel test set RHPE; la verifica è quindi
 qualitativa, tramite ispezione visiva delle predizioni.
+
+\subsection{Esplorazione su entrambe le mani: metodologia}
+\label{sec:esplorazione_dx_metodo}
+
+Al di là del confronto quantitativo tra le quattro varianti di modello,
+è stata condotta un'esplorazione qualitativa mirata a ottenere keypoint
+corretti su entrambe le mani nella stessa immagine, attraverso quattro
+approcci successivi, ciascuno motivato dai limiti del precedente.
+
+\begin{description}
+    \item[v1] Come primo tentativo, la mano destra viene cercata
+    affidandosi al modello \texttt{full} (Sez.~\ref{sec:varianti_modello}),
+    che integrando detection e keypoint estimation può in linea di
+    principio produrre più di una detection per immagine: si prendono
+    le prime due predizioni per punteggio di confidenza, e per ciascun
+    crop così ottenuto si stimano i keypoint con il modello
+    \texttt{mirrored}.
+
+    \item[v2] Poiché \texttt{full} non è mai stato addestrato a trovare
+    più di una mano per immagine, si è provato a semplificare il
+    problema dividendo verticalmente l'immagine a metà (sfruttando la
+    convenzione RHPE per cui l'immagine intera corrisponde alla metà
+    sinistra della radiografia) ed eseguendo la detection con
+    \texttt{full} separatamente su ciascuna metà, così che il modello
+    debba individuare al più una mano per volta, più vicino a ciò che
+    ha visto in training. I keypoint vengono stimati, come in v1, con
+    \texttt{mirrored}.
+
+    \item[v3] Poiché i risultati di v2 restano incostanti, si
+    sostituisce \texttt{full} con \texttt{mirrored} anche per la
+    detection sulle due metà, nell'ipotesi che, avendo visto in
+    training sia l'orientamento originale sia quello specchiato, possa
+    generalizzare meglio nel riconoscere una mano reale destra.
+
+    \item[v4] Infine, si utilizza un singolo modello,
+    \texttt{mirrored\_full}, per detection e keypoint estimation in un
+    unico passaggio sull'immagine intera, senza alcuna suddivisione né
+    pipeline a più stadi.
+\end{description}
+
+I risultati dei quattro approcci sono discussi in
+Sez.~\ref{sec:esplorazione_dx}.
 
 \section{Metriche di valutazione}
 \label{sec:metriche}
@@ -245,7 +307,7 @@ stretti di quelli standard COCO (range $0.0039$--$0.0120$ contro
 $0.025$--$0.107$), riflettendo la maggiore precisione richiesta nella
 localizzazione dei landmark anatomici della mano.
 
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Sigma OKS per i 17 keypoint della mano, dal materiale supplementare del paper BoNet~\cite{escobar2019bonet}.}
 \label{tab:sigma_oks}
