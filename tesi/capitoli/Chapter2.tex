@@ -63,7 +63,9 @@ modello scelto è Faster R-CNN con backbone ResNet-50 FPN, pre-addestrato su
 ImageNet (Sez.~\ref{sec:architetture}). L'architettura viene adattata al task tramite fine-tuning:
 l'ultimo layer (\texttt{box\_predictor}), originariamente configurato per
 91 classi (dataset COCO), viene sostituito con uno nuovo per 2 classi
-(background e mano).
+(background e mano). L'intero flusso descritto in questa sezione, dal
+campionamento dei dati al ciclo di addestramento, è implementato in un
+unico script, \texttt{train\_bbox.py}.
 
 \subsection{Campionamento stratificato}
 
@@ -149,7 +151,10 @@ disponibile in torchvision, come alternativa pragmatica a Simple
 Baselines. La scelta, concordata con il supervisore, è motivata da:
 interfaccia analoga a Faster R-CNN (già utilizzato per la detection) e
 disponibilità immediata senza necessità di implementare l'architettura
-da zero.
+da zero. Come per la hand detection, l'intero addestramento, incluse le
+quattro varianti descritte di seguito, è implementato in un unico
+script, \texttt{train\_keypoints.py}, parametrizzato tramite il flag
+\texttt{--mode}.
 
 \subsection{Quattro varianti di modello}
 \label{sec:varianti_modello}
@@ -240,8 +245,10 @@ qualitativa, tramite ispezione visiva delle predizioni.
 Al di là del confronto quantitativo tra le quattro varianti di modello,
 è stata condotta un'esplorazione qualitativa mirata a ottenere keypoint
 corretti su entrambe le mani nella stessa immagine, attraverso quattro
-approcci successivi, ciascuno motivato dai limiti del precedente. Il
-punteggio di confidenza associato a ciascuna detection, citato più
+approcci successivi, ciascuno motivato dai limiti del precedente e
+implementato come una modalità (\texttt{--version}) dello stesso script
+esplorativo, \texttt{right\_hand\_keypoints.py}. Il punteggio di
+confidenza associato a ciascuna detection, citato più
 volte nel seguito, è l'output diretto del classificatore del modello
 (la probabilità stimata che una regione contenga una mano), calcolato
 allo stesso modo indipendentemente dalla disponibilità di un ground
@@ -291,11 +298,28 @@ Sez.~\ref{sec:esplorazione_dx}.
 
 Le definizioni di IoU, mAP, mAR e OKS utilizzate in questo lavoro sono
 descritte in Sez.~\ref{sec:iou_map}. Per la hand detection, mAP e mAR
-vengono calcolate con la libreria \texttt{torchmetrics}. Per la
-keypoint estimation, la libreria \texttt{torchmetrics} (v1.5.2) non
-supporta \texttt{iou\_type='keypoints'}; la valutazione basata su OKS è
-stata quindi implementata direttamente con
-\texttt{pycocotools.cocoeval.COCOeval}.
+vengono calcolate con la libreria \texttt{torchmetrics}: lo script
+\texttt{eval\_bbox.py} carica il modello addestrato per lo split scelto
+(\texttt{--split}), ne raccoglie le predizioni sull'intero split e le
+confronta con il ground truth; con il flag opzionale
+\texttt{--visualize} salva anche alcune immagini di esempio con la
+bounding box predetta (rossa) e quella reale (verde) sovrapposte, per
+un'ispezione qualitativa.
+
+Per la keypoint estimation, la libreria \texttt{torchmetrics} (v1.5.2)
+non supporta \texttt{iou\_type='keypoints'}; la valutazione basata su
+OKS è stata quindi implementata direttamente con
+\texttt{pycocotools.cocoeval.COCOeval}. Lo script
+\texttt{eval\_keypoints.py} seleziona il modello (\texttt{--model}) e
+la modalità di input (\texttt{--mode}) da valutare, elabora ogni
+immagine dello split scelto di conseguenza (immagine intera, crop con
+bounding box ground truth, oppure crop con bounding box predetta dal
+modello di detection), confronta le predizioni con il ground truth
+tramite COCOeval, e registra i risultati in un file centralizzato
+(\texttt{all\_metrics.json}) insieme a quelli delle altre combinazioni
+già calcolate; con il flag opzionale \texttt{--visualize} salva inoltre
+alcune immagini di esempio con i keypoint predetti (rossi) e quelli
+reali (verdi) sovrapposti.
 
 \subsection{Sigma OKS}
 \label{sec:sigma_oks}
