@@ -2,8 +2,25 @@
 \label{chap:conclusioni}
 
 \section{Riepilogo dei contributi}
-% TODO
+
+La replica dei primi due stadi della pipeline BoNet~\cite{escobar2019bonet},
+hand detection e keypoint estimation, ha raggiunto prestazioni comparabili
+a quelle del paper di riferimento (Capitolo~\ref{chap:risultati}), pur
+addestrando i modelli da zero e su un sottoinsieme ridotto del dataset
+RHPE, confermando la fattibilità dell'approccio anche in condizioni di
+risorse limitate.
+
+Il secondo obiettivo, la predizione dei keypoint su entrambe le mani, ha
+portato al confronto di quattro varianti di modello e quattro strategie
+di combinazione (Sez.~\ref{sec:esplorazione_dx_metodo}), da cui è emerso
+\texttt{mirrored\_full} come soluzione più robusta: l'unico modello in
+grado di produrre detection e keypoint per entrambe le mani in un unico
+passaggio, senza necessitare di una bounding box esterna
+(Sez.~\ref{sec:esplorazione_dx}, Capitolo~\ref{chap:discussione}).
 
 \section{Sviluppi futuri}
 % TODO: pseudo-labeling sulle 50k immagini ospedaliere, classificatore
-% dx/sx, completamento del Bone Age Assessment, training su dataset completo
+% dx/sx, completamento del Bone Age Assessment (prendere spunto da SIMBA,
+% Gonzalez et al. MICCAI 2020: riusa heatmap da keypoint + identity markers
+% eta cronologica/genere via moltiplicatori appresi + relative bone age),
+% training su dataset completo
