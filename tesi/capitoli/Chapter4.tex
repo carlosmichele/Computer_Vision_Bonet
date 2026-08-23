@@ -51,4 +51,30 @@ prestazioni di picco, dove \texttt{gt\_crop} e \texttt{mirrored}
 restano superiori nel proprio dominio, e robustezza operativa.
 
 \section{Limiti del lavoro}
-% TODO
+
+Un primo limite riguarda la mano destra: le quattro strategie
+confrontate in Sez.~\ref{sec:esplorazione_dx} sono state valutate solo
+tramite ispezione visiva su un campione ridotto di immagini, poiché il
+dataset RHPE annota esclusivamente la mano sinistra. Non è quindi
+possibile fornire una misura quantitativa dell'accuratezza su questa
+mano, né confrontarla direttamente con le prestazioni ottenute sulla
+sinistra.
+
+In secondo luogo, l'intera estensione alla mano destra si fonda
+sull'assunzione che le due mani siano approssimabili tramite uno
+specchiamento orizzontale (Sez.~\ref{sec:mirroring}). Si tratta di una
+semplificazione geometrica: non tiene conto di eventuali asimmetrie
+reali tra le due mani, né di differenze di rotazione o posizionamento
+rispetto all'asse di specchiamento, e la sua validità non è stata
+verificata clinicamente o anatomicamente.
+
+Infine, tutti i modelli sono stati addestrati e valutati su un'unica
+fonte di dati, il dataset RHPE, raccolto da una singola coorte con un
+protocollo di acquisizione specifico. Si tratta, nella sostanza, dello
+stesso limite discusso per BoneXpert in
+Sez.~\ref{sec:approcci_automatici}: cambiare la popolazione di
+riferimento, da danese a colombiana, non elimina il problema
+strutturale di validare un modello su un'unica coorte. Il comportamento
+dei modelli proposti in questo lavoro su dati provenienti da
+popolazioni, protocolli di acquisizione o apparecchiature diverse resta
+quindi non verificato.
