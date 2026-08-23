@@ -5,7 +5,50 @@
 % TODO
 
 \section{Osservazioni metodologiche}
-% TODO
+
+Il pattern osservato in Sez.~\ref{sec:risultati_keypoint}, un crollo
+quasi totale delle prestazioni quando un modello viene valutato fuori
+dal dominio visto in training, non è un artefatto specifico di questo
+lavoro, ma un'istanza di un fenomeno più generale: un modello di
+apprendimento supervisionato non impara un compito in astratto, impara
+a risolverlo assumendo implicitamente che i dati futuri seguano la
+stessa distribuzione di quelli visti in addestramento
+(Sez.~\ref{sec:classificazione}). Nel caso di \texttt{gt\_crop} e
+\texttt{mirrored}, questa assunzione implicita è particolarmente
+rigida: il target di bounding box è sempre l'intero crop, quindi il
+modello non solo non ha mai visto immagini con sfondo, ma non ha mai
+avuto un incentivo ad apprendere a distinguere la mano dal contesto
+circostante.
+
+Un confronto più specifico rafforza questa lettura. \texttt{full} e
+\texttt{mirrored\_full} sono gli unici due modelli addestrati
+sull'immagine intera; quando entrambi vengono valutati fuori da questo
+dominio, su crop, \texttt{mirrored\_full} supera \texttt{full} in modo
+pressoché sistematico su quasi tutte le combinazioni di split e metrica
+(ad esempio, sul test set, mAP@[.5:.95] in modalità \texttt{gt\_crop}:
+0.527 contro 0.515; in modalità \texttt{det\_crop}: 0.561 contro
+0.541). Il raddoppio dei dati di training tramite lo specchiamento,
+introdotto per predire keypoint su entrambe le mani, sembra quindi
+avere un effetto positivo secondario anche sulla capacità di
+generalizzazione del modello al di fuori del compito per cui era stato
+pensato.
+
+Questo suggerisce una lettura pratica oltre a quella puramente
+numerica: sebbene Keypoint R-CNN sia di per sé un'architettura
+integrata capace di detection e keypoint estimation insieme, la testa
+di detection di \texttt{gt\_crop} e \texttt{mirrored} non ha mai
+imparato a localizzare la mano in un contesto ampio, essendo stata
+addestrata con un target di bounding box sempre coincidente con
+l'intero crop. In pratica, questi due modelli restano quindi
+utilizzabili solo se a monte è disponibile una bounding box prodotta
+altrove (dal ground truth o da un sistema di detection dedicato, come
+nella modalità \texttt{det\_crop}): non è un limite architetturale di
+Keypoint R-CNN, ma una conseguenza diretta di come sono stati
+addestrati. \texttt{mirrored\_full}, addestrato invece sull'intera
+immagine, non ha questo vincolo, ed è l'unica variante in grado di
+funzionare in autonomia end-to-end: un compromesso deliberato tra
+prestazioni di picco, dove \texttt{gt\_crop} e \texttt{mirrored}
+restano superiori nel proprio dominio, e robustezza operativa.
 
 \section{Limiti del lavoro}
 % TODO
