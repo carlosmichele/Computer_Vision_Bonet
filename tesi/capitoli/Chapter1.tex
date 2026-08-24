@@ -175,9 +175,10 @@ aggiornata durante l'addestramento sul nuovo task.
 
 Prima dell'avvento del deep learning, uno strumento automatico diffuso
 in ambito clinico è BoneXpert, un software commerciale sviluppato nel
-2009 da Thodberg e Kreiborg, che stima l'età ossea tramite edge
-detection e active appearance models, basandosi sui criteri di
-G\&P e TW2~\cite{escobar2019bonet}. Essendo stato sviluppato
+2009 da Thodberg e Kreiborg, che stima l'età ossea tramite
+tecniche di elaborazione d'immagine classiche, precedenti al deep
+learning, basandosi sui criteri di G\&P e TW2~\cite{escobar2019bonet}.
+Essendo stato sviluppato
 su una coorte di pazienti danesi, la sua affidabilità non è garantita
 su popolazioni con caratteristiche diverse, una limitazione che motiva,
 tra l'altro, la costruzione di dataset come RHPE su popolazioni diverse
@@ -253,13 +254,25 @@ pubblicazione.
 
 Un'alternativa è Keypoint R-CNN~\cite{he2017maskrcnn}, presentata nello
 stesso paper di Mask R-CNN come estensione dello stesso framework alla
-stima della posa: ogni keypoint viene predetto come una maschera binaria,
-con la stessa tecnica usata per predire le maschere di segmentazione. A
+stima della posa: ogni keypoint viene predetto individuando la sua
+posizione più probabile all'interno di una griglia di possibili
+posizioni (una \emph{maschera} binaria, la stessa rappresentazione
+usata in Mask R-CNN per la segmentazione). A
 differenza di Simple Baselines, che richiede in input un crop già
 ritagliato attorno al soggetto, Keypoint R-CNN integra detection e
 keypoint estimation in un'unica rete, individuando prima le regioni
 candidate con la RPN e poi predicendo i keypoint direttamente su ciascuna
-di esse.
+di esse. Per farlo, ogni regione candidata, che può avere dimensioni
+diverse a seconda di dove si trova la mano nell'immagine, deve prima
+essere convertita in una griglia di dimensione fissa su cui operare. Le
+versioni precedenti di Faster R-CNN facevano questa conversione
+arrotondando i confini della regione alle celle più vicine della
+griglia, introducendo così un piccolo errore di posizione. Keypoint
+R-CNN utilizza invece una tecnica più precisa, \emph{ROIAlign}, che
+evita questo arrotondamento e stima i valori nelle posizioni esatte:
+gli autori di Mask R-CNN mostrano che questa maggiore precisione conta
+soprattutto per i keypoint, che richiedono una localizzazione più fine
+rispetto alla semplice classificazione.
 
 Entrambe le architetture vengono utilizzate in questo lavoro tramite
 \emph{fine-tuning} (Sez.~\ref{sec:transfer_learning}): il backbone

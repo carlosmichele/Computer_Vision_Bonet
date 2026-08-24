@@ -36,6 +36,7 @@ alla mano destra descritto in Sez.~\ref{sec:esplorazione_dx_metodo}.
 \centering
 \caption{Distribuzione del dataset RHPE per split.}
 \label{tab:dataset_split}
+\smallskip
 \begin{tabular}{lccc}
 \toprule
 Split & Immagini & Maschi & Femmine \\
@@ -120,10 +121,18 @@ target in due liste separate anziché impilarli.
 Il comportamento dei modelli di detection di torchvision dipende dalla
 modalità in cui si trovano: in modalità di addestramento (\texttt{model.train()}),
 avendo a disposizione i target, il modello non restituisce predizioni
-ma un dizionario con quattro componenti di loss (relative a
+ma un dizionario con quattro componenti di loss, relative a
 classificazione, regressione della bounding box, objectness e
-raffinamento delle proposte della RPN), la cui somma costituisce la
-loss totale su cui viene calcolato il gradiente; in modalità di
+raffinamento delle proposte della RPN: classificazione e objectness
+sono funzioni di tipo \emph{cross-entropy}: se il modello assegna una
+probabilità bassa alla classe corretta la penalità è alta, se la
+assegna vicina a 1 la penalità è quasi nulla. Regressione della
+bounding box e raffinamento delle proposte sono invece di tipo
+\emph{smooth L1}, che misura la distanza tra le coordinate predette e
+quelle reali: per piccoli errori si comporta come l'errore quadratico,
+ma per errori grandi cresce più lentamente, così un singolo caso molto
+sbagliato non domina l'intera loss. La somma delle quattro costituisce
+la loss totale su cui viene calcolato il gradiente; in modalità di
 valutazione (\texttt{model.eval()}) restituisce invece le predizioni.
 
 Le 5000 iterazioni indicate dal paper BoNet si riferiscono a singoli
@@ -220,8 +229,10 @@ coordinate $(x, y)$ e la terza è un flag di visibilità. In modalità di
 addestramento, il modello restituisce quindi un dizionario con cinque
 componenti di loss anziché quattro: alle stesse quattro della hand
 detection (Sez.~\ref{sec:hand_detection}) si aggiunge una loss
-specifica per i keypoint, e la somma delle cinque costituisce la loss
-totale su cui viene calcolato il gradiente.
+specifica per i keypoint (anch'essa una \emph{cross-entropy}, calcolata
+non sulle coordinate continue ma sulla posizione discretizzata di
+ciascun keypoint in un'heatmap), e la somma delle cinque costituisce la
+loss totale su cui viene calcolato il gradiente.
 
 \subsection{Estensione alla mano destra tramite mirroring}
 \label{sec:mirroring}
@@ -345,6 +356,7 @@ localizzazione dei landmark anatomici della mano.
 \centering
 \caption{Sigma OKS per i 17 keypoint della mano, dal materiale supplementare del paper BoNet~\cite{escobar2019bonet}.}
 \label{tab:sigma_oks}
+\smallskip
 \begin{tabular}{lc}
 \toprule
 Keypoint & $\sigma$ \\
