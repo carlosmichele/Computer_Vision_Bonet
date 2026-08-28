@@ -20,18 +20,22 @@ modello non solo non ha mai visto immagini con sfondo, ma non ha mai
 avuto un incentivo ad apprendere a distinguere la mano dal contesto
 circostante.
 
-Un confronto più specifico rafforza questa lettura. \texttt{full} e
-\texttt{mirrored\_full} sono gli unici due modelli addestrati
-sull'immagine intera; quando entrambi vengono valutati fuori da questo
-dominio, su crop, \texttt{mirrored\_full} supera \texttt{full} in modo
-pressoché sistematico su quasi tutte le combinazioni di split e metrica
-(ad esempio, sul test set, mAP@[.5:.95] in modalità \texttt{gt\_crop}:
-0.527 contro 0.515; in modalità \texttt{det\_crop}: 0.561 contro
-0.541). Il raddoppio dei dati di training tramite lo specchiamento,
-introdotto per predire keypoint su entrambe le mani, sembra quindi
-avere un effetto positivo secondario anche sulla capacità di
-generalizzazione del modello al di fuori del compito per cui era stato
-pensato.
+Un confronto più specifico è compatibile con questa lettura.
+\texttt{full} e \texttt{mirrored\_full} sono gli unici due modelli
+addestrati sull'immagine intera; quando entrambi vengono valutati fuori
+da questo dominio, su crop, \texttt{mirrored\_full} supera \texttt{full}
+in modo pressoché sistematico su quasi tutte le combinazioni di split e
+metrica (ad esempio, sul test set, mAP@[.5:.95] in modalità
+\texttt{gt\_crop}: 0.527 contro 0.515; in modalità \texttt{det\_crop}:
+0.561 contro 0.541). I risultati sono compatibili con l'ipotesi che il
+raddoppio dei dati di training introdotto dallo specchiamento, pensato
+per predire keypoint su entrambe le mani, abbia anche un effetto
+positivo secondario sulla capacità di generalizzazione del modello; non
+è però possibile, con gli esperimenti disponibili, isolare questo
+effetto da spiegazioni alternative (ad esempio un semplice aumento
+della quantità di dati, indipendente dallo specchiamento in sé), poiché
+non è stato addestrato un modello di controllo su 500 immagini non
+specchiate.
 
 Questo suggerisce una lettura pratica oltre a quella puramente
 numerica: sebbene Keypoint R-CNN sia di per sé un'architettura
