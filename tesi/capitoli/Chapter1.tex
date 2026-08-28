@@ -19,19 +19,12 @@ dataset.
 Il compito di riferimento della visione artificiale è la classificazione
 di immagini: dato un insieme prestabilito di categorie possibili e
 un'immagine in ingresso, assegnare a quest'ultima la categoria corretta.
-Per una persona si tratta di un'operazione immediata, ma per un
-calcolatore l'immagine non è altro che un tensore di numeri interi,
-tipicamente compresi tra 0 e 255, che rappresentano l'intensità dei
-singoli pixel sui tre canali di colore. Tra questa rappresentazione
+Per un calcolatore l'immagine non è altro che un tensore di numeri
+interi, tipicamente compresi tra 0 e 255, che rappresentano l'intensità
+dei singoli pixel sui tre canali di colore: tra questa rappresentazione
 numerica e il concetto che l'immagine raffigura non esiste alcuna
-corrispondenza diretta, e questa distanza prende il nome di
-\emph{semantic gap}.
-
-Il problema è reso più difficile dal fatto che lo stesso soggetto può
-produrre immagini molto diverse tra loro, a seconda del punto di vista,
-dell'illuminazione, della posa o dello sfondo: non è quindi possibile
-scrivere a mano una procedura che riconosca una categoria in tutte
-queste situazioni.
+corrispondenza diretta, una distanza nota come \emph{semantic gap}, che
+rende impraticabile scrivere a mano una procedura di riconoscimento.
 
 L'approccio che si è affermato è invece guidato dai dati
 (\emph{data-driven}) e si articola in tre passi: raccogliere un insieme
@@ -56,22 +49,18 @@ anatomici, descritti nella Sezione~\ref{sec:architetture}.
 Il modello più semplice che realizza questo schema è il classificatore
 lineare, che calcola i punteggi delle classi come $f(x, W) = Wx + b$,
 dove $x$ è l'immagine in ingresso rappresentata come vettore, $W$ è una
-matrice di pesi e $b$ un termine costante. A ciascuna classe corrisponde
-una riga di $W$, che può essere interpretata come un modello di
-riferimento (\emph{template}) per quella categoria: il punteggio è tanto
-più alto quanto più l'immagine somiglia al template appreso.
-
-Questa impostazione ha però un limite strutturale: disponendo di un solo
-template per classe, il modello non riesce a rappresentare categorie che
-si presentano in forme diverse tra loro.
+matrice di pesi e $b$ un termine costante: a ciascuna classe corrisponde
+una riga di $W$, interpretabile come un modello di riferimento
+(\emph{template}) per quella categoria. Disponendo di un solo template
+per classe, però, il classificatore lineare non riesce a rappresentare
+categorie che si presentano in forme diverse tra loro.
 
 Una rete neurale supera questo limite introducendo un calcolo
 gerarchico. Nella sua forma più semplice, una rete a due strati calcola
 $f = W_2 \max(0, W_1 x)$: il primo strato produce una rappresentazione
 intermedia, detta strato nascosto (\emph{hidden layer}), e il secondo la
-combina per ottenere i punteggi finali. In questo modo la rete apprende
-un numero molto maggiore di template intermedi e può condividerli tra
-più classi, componendoli anziché doverne associare uno solo a ciascuna
+combina per ottenere i punteggi finali, apprendendo così più template
+intermedi condivisibili tra classi diverse anziché uno solo per
 categoria.
 
 L'elemento che rende possibile questa maggiore espressività è la
@@ -83,16 +72,13 @@ lineare. Tra le varie funzioni di attivazione proposte in letteratura,
 la ReLU~\cite{nair2010relu}, definita come $\max(0, x)$, è quella
 comunemente adottata come scelta predefinita.
 
-Impilando più strati si ottiene una rete profonda. Gli strati in cui
-ogni unità è collegata a tutte le unità dello strato precedente sono
-detti completamente connessi (\emph{fully connected}), e il numero
-complessivo di unità determina la capacità del modello, ovvero la
-complessità delle funzioni che è in grado di rappresentare. Una capacità
-elevata comporta il rischio di \emph{overfitting}, cioè di adattarsi
-troppo ai dati di addestramento perdendo la capacità di generalizzare;
-il modo corretto di contenerlo non è però ridurre la dimensione della
-rete, ma agire sulla regolarizzazione, come descritto nella sezione
-seguente.
+Impilando più strati si ottiene una rete profonda, i cui strati
+completamente connessi (\emph{fully connected}) collegano ogni unità a
+tutte quelle dello strato precedente. Il numero complessivo di unità
+determina la capacità del modello, ovvero la complessità delle funzioni
+che è in grado di rappresentare: una capacità elevata comporta il
+rischio di \emph{overfitting}, che si contiene non riducendo la rete ma
+agendo sulla regolarizzazione, come descritto nella sezione seguente.
 
 \subsection{L'addestramento di una rete neurale}
 \label{sec:addestramento}
@@ -135,14 +121,13 @@ completo su tutti i dati di addestramento costituisce un'\emph{epoca}, e
 l'addestramento si protrae per un numero prefissato di epoche oppure di
 iterazioni.
 
-La SGD nella sua forma base presenta alcune difficoltà: avanza lentamente
-lungo le direzioni in cui la loss varia poco, può arrestarsi in minimi
-locali o punti di sella, e risente della rumorosità del gradiente
-stimato su un singolo mini-batch. Per attenuare questi effetti si
-introduce il \emph{momentum}~\cite{sutskever2013momentum}, che accumula
-una media mobile dei gradienti calcolati ai passi precedenti e la
-utilizza per determinare la direzione di avanzamento, con un
-coefficiente tipicamente pari a 0.9.
+La SGD nella sua forma base può produrre aggiornamenti rumorosi e una
+convergenza meno regolare, a causa della stima del gradiente su un
+singolo mini-batch; per attenuare questi effetti si introduce il
+\emph{momentum}~\cite{sutskever2013momentum},
+che accumula una media mobile dei gradienti dei passi precedenti per
+determinare la direzione di avanzamento, con un coefficiente tipicamente
+pari a 0.9.
 
 \subsection{Reti neurali convoluzionali}
 
@@ -183,6 +168,14 @@ su una coorte di pazienti danesi, la sua affidabilità non è garantita
 su popolazioni con caratteristiche diverse, una limitazione che motiva,
 tra l'altro, la costruzione di dataset come RHPE su popolazioni diverse
 da quelle già coperte.
+
+Il dataset reso disponibile dalla RSNA Pediatric Bone Age Challenge del
+2017~\cite{halabi2019rsna} ha successivamente favorito la diffusione di
+approcci basati su reti neurali convoluzionali, addestrate end-to-end
+direttamente sull'immagine radiografica per predire l'età ossea. Il
+paradigma BoNet, descritto nella sezione seguente, si inserisce in
+questo filone ma ne rappresenta un'evoluzione mirata, introducendo
+l'uso esplicito di informazione anatomica locale.
 
 \section{Il paradigma BoNet}
 \label{sec:paradigma_bonet}
