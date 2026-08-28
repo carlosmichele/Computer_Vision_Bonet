@@ -72,33 +72,49 @@ Test & mirrored\_full & det\_crop & 0.5606 & 0.9322 & 0.6470 & 0.6089 \\
 \end{tabular}
 \end{table}
 
-Emergono due pattern principali:
+Dai risultati emergono tre osservazioni principali.
 
-\begin{enumerate}
-    \item \textbf{Coerenza dominio di training/valutazione}: ogni
-    modello ottiene le migliori prestazioni quando valutato nella
-    modalità corrispondente al proprio dominio di training. Il caso più
-    estremo è \texttt{gt\_crop} valutato in modalità \texttt{full}
-    (mAP@[.5:.95] = 0.086 sul test set), che crolla drasticamente perché
-    il modello non ha mai imparato a localizzare la mano in un contesto
-    più ampio del crop stretto.
+Innanzitutto, la mAP dipende fortemente dalla coerenza tra dominio di
+valutazione e dominio di training: ogni modello ottiene le prestazioni
+migliori quando valutato nella modalità corrispondente al proprio
+addestramento. Il caso più estremo è \texttt{gt\_crop} valutato in
+modalità \texttt{full} (mAP@[.5:.95] = 0.086 sul test set, contro 0.704
+nel proprio dominio): il modello non ha mai visto, in training, un
+target di bounding box diverso dall'intero crop, e di conseguenza non
+ha mai imparato a localizzare la mano in un contesto più ampio.
 
-    \item \textbf{Generalizzazione di \texttt{mirrored\_full}}: questo
-    modello mantiene prestazioni ragionevoli anche fuori dal proprio
-    dominio primario (mAP@[.5:.95] $\approx$ 0.53--0.56 su crop, sul test
-    set), risultato nettamente migliore del quasi totale collasso
-    osservato per \texttt{gt\_crop} e \texttt{mirrored} in modalità
-    \texttt{full}. Ciò conferma l'ipotesi alla base della sua
-    progettazione (Sez.~\ref{sec:varianti_modello}).
-\end{enumerate}
+In secondo luogo, tra le quattro varianti \texttt{mirrored\_full} è
+quella che si comporta in modo più equilibrato tra i domini: mantiene
+prestazioni ragionevoli anche fuori dal proprio dominio primario
+(mAP@[.5:.95] $\approx$ 0.53--0.56 su crop, sul test set), contro il
+quasi totale collasso di \texttt{gt\_crop} e \texttt{mirrored} in
+modalità \texttt{full}. Questo è compatibile con l'ipotesi alla base
+della sua progettazione (Sez.~\ref{sec:varianti_modello}); i dati
+disponibili non permettono però di isolare quanto di questo vantaggio
+derivi dallo specchiamento in sé e quanto dal semplice raddoppio dei
+dati di training che esso comporta.
+
+Infine, questo comportamento più equilibrato ha un costo: nel proprio
+dominio nativo \texttt{mirrored\_full} non raggiunge le prestazioni di
+picco di \texttt{gt\_crop} e \texttt{mirrored} (rispettivamente 0.704 e
+0.640 in modalità \texttt{gt\_crop}, contro 0.676 di
+\texttt{mirrored\_full} in modalità \texttt{full}). Le varianti allenate
+su crop restano quindi preferibili quando è disponibile una bounding box
+di alta qualità a monte; \texttt{mirrored\_full} resta però l'unica in
+grado di funzionare direttamente sull'immagine intera, senza fasi di
+localizzazione separate.
 
 Confrontando con il paper BoNet~\cite{escobar2019bonet} (mAP@[.5:.95]
 $=$ 0.814 con bounding box ground truth sul dataset RHPE, sull'intero
 training set), i risultati ottenuti su un sottoinsieme di 250 immagini
 (\texttt{gt\_crop} in modalità \texttt{gt\_crop}: 0.704; \texttt{mirrored}
-in modalità \texttt{gt\_crop}: 0.640) risultano comparabili, tenendo
-conto della
-significativa riduzione del dataset di training.
+in modalità \texttt{gt\_crop}: 0.640) risultano inferiori a quelli
+riportati da BoNet. La differenza va però interpretata tenendo conto
+sia della significativa riduzione del dataset di training, sia
+dell'architettura diversa adottata per la keypoint estimation
+(Keypoint R-CNN anziché Simple Baselines,
+Sez.~\ref{sec:keypoint_estimation}): non si tratta quindi di un
+confronto perfettamente controllato.
 
 \begin{figure}[htbp]
 \centering
@@ -188,10 +204,12 @@ ciascuna metà, keypoint con \texttt{mirrored}.}
 \label{fig:rhkp_v4}
 \end{figure}
 
-La strategia v4 risulta la più efficace e coerente con i risultati
-quantitativi discussi in precedenza, e viene adottata come soluzione di
-riferimento per l'obiettivo esplorativo di predizione su entrambe le
-mani.
+Tra le quattro strategie esplorate, v4 appare la più efficace ed è
+coerente con i risultati quantitativi discussi in precedenza; viene
+quindi adottata come soluzione di riferimento per l'obiettivo
+esplorativo di predizione su entrambe le mani, tenendo conto che questa
+valutazione resta qualitativa e basata su un campione ridotto di
+immagini.
 
 \section{Bone Age Assessment}
 \label{sec:risultati_bonet}
