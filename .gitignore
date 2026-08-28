@@ -6,6 +6,7 @@ __pycache__/
 experiments/*
 *.png
 !tesi/LogoUniToConvertito.png
+!tesi/figure/*.png
 
 # LaTeX build artifacts
 tesi/*.aux
