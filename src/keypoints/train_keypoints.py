@@ -21,8 +21,8 @@ NUM_KEYPOINTS = 17
 random.seed(SEED)
 torch.manual_seed(SEED)
 
-# ── Stratified Sampling ───────────────────────────────────────────────────
-def stratified_sample(json_path, csv_path, n_samples, split_name):
+# ── COCO annotation loading (shared by both sampling strategies) ──────────
+def load_coco_maps(json_path):
     with open(json_path) as f:
         coco = json.load(f)
 
@@ -31,6 +31,12 @@ def stratified_sample(json_path, csv_path, n_samples, split_name):
     for ann in coco['annotations']:
         if ann['image_id'] not in id_to_ann:
             id_to_ann[ann['image_id']] = ann
+
+    return id_to_file, id_to_ann
+
+# ── Stratified Sampling ───────────────────────────────────────────────────
+def stratified_sample(json_path, csv_path, n_samples, split_name):
+    id_to_file, id_to_ann = load_coco_maps(json_path)
 
     df      = pd.read_csv(csv_path)
     age_col = 'Boneage' if 'Boneage' in df.columns else 'Chronological'
@@ -45,6 +51,14 @@ def stratified_sample(json_path, csv_path, n_samples, split_name):
     sampled_ids = sampled_ids[:n_samples]
     print(f"{split_name}: {len(sampled_ids)} images sampled")
     return sampled_ids, id_to_file, id_to_ann
+
+# ── Full dataset (no sampling) ─────────────────────────────────────────────
+def load_all_ids(json_path, csv_path, split_name):
+    id_to_file, id_to_ann = load_coco_maps(json_path)
+    df  = pd.read_csv(csv_path)
+    ids = df['ID'].tolist()
+    print(f"{split_name}: {len(ids)} images (full dataset, no sampling)")
+    return ids, id_to_file, id_to_ann
 
 # ── Dataset ───────────────────────────────────────────────────────────────
 class RHPEKeypointDataset(Dataset):
@@ -162,6 +176,9 @@ def main():
                         help='full: whole image | gt_crop: crop with gt bbox | '
                              'mirrored: crop with gt bbox + mirrored synthetic right hand | '
                              'mirrored_full: whole image + mirrored whole image (right hand)')
+    parser.add_argument('--full-dataset', action='store_true',
+                        help='use the entire train/val split instead of the '
+                             'stratified 250/50 subset')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -173,13 +190,22 @@ def main():
         torch.cuda.manual_seed_all(SEED)
 
     # Sampling
-    train_ids, id_to_file_train, id_to_ann_train = stratified_sample(
-        f"{ANN}/RHPE_anatomical_ROIs_train.json",
-        f"{ANN}/RHPE_Boneage_train.csv", 250, "TRAIN")
+    if args.full_dataset:
+        train_ids, id_to_file_train, id_to_ann_train = load_all_ids(
+            f"{ANN}/RHPE_anatomical_ROIs_train.json",
+            f"{ANN}/RHPE_Boneage_train.csv", "TRAIN")
 
-    val_ids, id_to_file_val, id_to_ann_val = stratified_sample(
-        f"{ANN}/RHPE_anatomical_ROIs_val.json",
-        f"{ANN}/RHPE_Boneage_val.csv", 50, "VAL")
+        val_ids, id_to_file_val, id_to_ann_val = load_all_ids(
+            f"{ANN}/RHPE_anatomical_ROIs_val.json",
+            f"{ANN}/RHPE_Boneage_val.csv", "VAL")
+    else:
+        train_ids, id_to_file_train, id_to_ann_train = stratified_sample(
+            f"{ANN}/RHPE_anatomical_ROIs_train.json",
+            f"{ANN}/RHPE_Boneage_train.csv", 250, "TRAIN")
+
+        val_ids, id_to_file_val, id_to_ann_val = stratified_sample(
+            f"{ANN}/RHPE_anatomical_ROIs_val.json",
+            f"{ANN}/RHPE_Boneage_val.csv", 50, "VAL")
 
     # Datasets and DataLoaders
     train_dataset = RHPEKeypointDataset(
@@ -190,8 +216,10 @@ def main():
         mode=args.mode, transforms=transform)
 
     train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True,
+                              num_workers=4, pin_memory=True,
                               collate_fn=lambda x: tuple(zip(*x)))
     val_loader   = DataLoader(val_dataset, batch_size=1, shuffle=False,
+                              num_workers=4, pin_memory=True,
                               collate_fn=lambda x: tuple(zip(*x)))
 
     # Model and optimizer — SGD with standard hyperparameters
@@ -202,7 +230,8 @@ def main():
     # 20 epochs as indicated in the BoNet paper for keypoint estimation
     num_epochs = 20
 
-    save_path = f"/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe_{args.mode}.pth"
+    suffix    = "_fulldata" if args.full_dataset else ""
+    save_path = f"/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe_{args.mode}{suffix}.pth"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
     best_val_map = -1.0
