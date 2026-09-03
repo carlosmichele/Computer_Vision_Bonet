@@ -1,15 +1,17 @@
 import os
-import json
+import sys
 import random
 import argparse
 import numpy as np
-import pandas as pd
 from PIL import Image, ImageOps
 import torch
 from torchvision import transforms as T
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
 from torchvision.models.detection.keypoint_rcnn import KeypointRCNNPredictor
 from torch.utils.data import Dataset, DataLoader
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from rhpe_data import stratified_sample, load_all_ids, match_samples
 
 BASE = "/data01/giacomelli/data"
 ANN  = f"{BASE}/RHPE_Annotations"
@@ -19,45 +21,6 @@ NUM_KEYPOINTS = 17
 
 random.seed(SEED)
 torch.manual_seed(SEED)
-
-# ── COCO annotation loading (shared by both sampling strategies) ──────────
-def load_coco_maps(json_path):
-    with open(json_path) as f:
-        coco = json.load(f)
-
-    id_to_file = {img['id']: img['file_name'] for img in coco['images']}
-    id_to_ann  = {}
-    for ann in coco['annotations']:
-        if ann['image_id'] not in id_to_ann:
-            id_to_ann[ann['image_id']] = ann
-
-    return id_to_file, id_to_ann
-
-# ── Stratified Sampling ───────────────────────────────────────────────────
-def stratified_sample(json_path, csv_path, n_samples, split_name):
-    id_to_file, id_to_ann = load_coco_maps(json_path)
-
-    df      = pd.read_csv(csv_path)
-    age_col = 'Boneage' if 'Boneage' in df.columns else 'Chronological'
-    df['bin'] = (df[age_col] // 24).astype(int)
-
-    sampled_ids = []
-    for bin_val, group in df.groupby('bin'):
-        n       = max(1, round(n_samples * len(group) / len(df)))
-        sampled = group.sample(min(n, len(group)), random_state=SEED)
-        sampled_ids.extend(sampled['ID'].tolist())
-
-    sampled_ids = sampled_ids[:n_samples]
-    print(f"{split_name}: {len(sampled_ids)} images sampled")
-    return sampled_ids, id_to_file, id_to_ann
-
-# ── Full dataset (no sampling) ─────────────────────────────────────────────
-def load_all_ids(json_path, csv_path, split_name):
-    id_to_file, id_to_ann = load_coco_maps(json_path)
-    df  = pd.read_csv(csv_path)
-    ids = df['ID'].tolist()
-    print(f"{split_name}: {len(ids)} images (full dataset, no sampling)")
-    return ids, id_to_file, id_to_ann
 
 # ── Dataset ───────────────────────────────────────────────────────────────
 class RHPEKeypointDataset(Dataset):
@@ -89,13 +52,7 @@ class RHPEKeypointDataset(Dataset):
         self.mode       = mode
         self.samples    = []  # list of (fname, ann, flip: bool)
 
-        base_samples = []
-        for img_id in sampled_ids:
-            for coco_id, fname in id_to_file.items():
-                file_id = int(os.path.splitext(fname)[0])
-                if file_id == img_id and coco_id in id_to_ann:
-                    base_samples.append((fname, id_to_ann[coco_id]))
-                    break
+        base_samples = match_samples(sampled_ids, id_to_file, id_to_ann)
 
         if mode in ('mirrored', 'mirrored_full'):
             for fname, ann in base_samples:
@@ -200,11 +157,11 @@ def main():
     else:
         train_ids, id_to_file_train, id_to_ann_train = stratified_sample(
             f"{ANN}/RHPE_anatomical_ROIs_train.json",
-            f"{ANN}/RHPE_Boneage_train.csv", 250, "TRAIN")
+            f"{ANN}/RHPE_Boneage_train.csv", 250, "TRAIN", seed=SEED)
 
         val_ids, id_to_file_val, id_to_ann_val = stratified_sample(
             f"{ANN}/RHPE_anatomical_ROIs_val.json",
-            f"{ANN}/RHPE_Boneage_val.csv", 50, "VAL")
+            f"{ANN}/RHPE_Boneage_val.csv", 50, "VAL", seed=SEED)
 
     # Datasets and DataLoaders
     train_dataset = RHPEKeypointDataset(
