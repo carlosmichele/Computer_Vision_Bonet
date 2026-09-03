@@ -10,7 +10,6 @@ from torchvision import transforms as T
 from torchvision.models.detection import keypointrcnn_resnet50_fpn
 from torchvision.models.detection.keypoint_rcnn import KeypointRCNNPredictor
 from torch.utils.data import Dataset, DataLoader
-from torchmetrics.detection.mean_ap import MeanAveragePrecision
 
 BASE = "/data01/giacomelli/data"
 ANN  = f"{BASE}/RHPE_Annotations"
@@ -234,7 +233,7 @@ def main():
     save_path = f"/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe_{args.mode}{suffix}.pth"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
-    best_val_map = -1.0
+    best_val_loss = float('inf')
 
     for epoch in range(num_epochs):
         model.train()
@@ -255,44 +254,34 @@ def main():
 
         avg_train_loss = epoch_train_loss / len(train_loader)
 
-        # Validation — mAP on bbox as proxy for best model selection
-        model.eval()
-        metric       = MeanAveragePrecision()
-        preds_list   = []
-        targets_list = []
+        # Validation — loss (train-mode forward pass, no backward) as proxy
+        # for best model selection: includes the keypoint loss term, unlike
+        # bbox mAP. Matters for modes like gt_crop where the bbox target
+        # never varies ([0,0,w,h]): mAP saturates early and stops
+        # discriminating between epochs.
+        model.train()
+        val_loss_total = 0.0
 
         with torch.no_grad():
             for val_imgs, val_targets in val_loader:
-                val_imgs_gpu = [img.to(device) for img in val_imgs]
-                preds        = model(val_imgs_gpu)
+                val_imgs_gpu    = [img.to(device) for img in val_imgs]
+                val_targets_gpu = [{k: v.to(device) for k, v in t.items()} for t in val_targets]
 
-                for pred, target in zip(preds, val_targets):
-                    preds_list.append({
-                        'boxes':  pred['boxes'].cpu(),
-                        'scores': pred['scores'].cpu(),
-                        'labels': pred['labels'].cpu(),
-                    })
-                    targets_list.append({
-                        'boxes':  target['boxes'],
-                        'labels': target['labels'],
-                    })
+                loss_dict = model(val_imgs_gpu, val_targets_gpu)
+                val_loss_total += sum(loss_dict.values()).item()
 
-        metric.update(preds_list, targets_list)
-        val_results = metric.compute()
-        val_map     = val_results['map'].item()
-        val_map_50  = val_results['map_50'].item()
+        avg_val_loss = val_loss_total / len(val_loader)
 
         print(f"Epoch {epoch+1}/{num_epochs} ── "
               f"Train Loss: {avg_train_loss:.4f} | "
-              f"Val mAP@.50: {val_map_50:.4f} | "
-              f"Val mAP@[.5:.95]: {val_map:.4f}")
+              f"Val Loss: {avg_val_loss:.4f}")
 
-        if val_map > best_val_map:
-            best_val_map = val_map
+        if avg_val_loss < best_val_loss:
+            best_val_loss = avg_val_loss
             torch.save(model.state_dict(), save_path)
-            print(f"  => New best model saved to {save_path} with mAP@[.5:.95]: {best_val_map:.4f}")
+            print(f"  => New best model saved to {save_path} with Val Loss: {best_val_loss:.4f}")
 
-    print(f"Training complete. Best Validation mAP@[.5:.95]: {best_val_map:.4f}")
+    print(f"Training complete. Best Validation Loss: {best_val_loss:.4f}")
 
 
 if __name__ == '__main__':
