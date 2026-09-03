@@ -20,6 +20,10 @@ DET_CHECKPOINT      = "/data01/giacomelli/experiments/bbox_detection/checkpoints
 NUM_KEYPOINTS = 17
 CATEGORY_ID   = 1
 
+# Minimum confidence to be considered a candidate for the "leftmost box"
+# selection in 'full' mode.
+LEFT_HAND_SCORE_THRESHOLD = 0.5
+
 # Per-keypoint OKS sigmas as reported in the BoNet supplementary material
 # (Escobar et al., MICCAI 2019), computed from the variance across
 # different trained annotators labeling the same image. Order assumed to
@@ -171,11 +175,21 @@ def main():
             # In 'full' mode the model may detect both hands (mirrored_full
             # was trained on both orientations); we always want the left
             # hand here, since that's what the ground truth annotates.
-            # Pick the detection whose box is leftmost (smallest x1),
-            # instead of always taking the top-scoring one.
+            # Among detections above LEFT_HAND_SCORE_THRESHOLD, pick the one
+            # whose box is leftmost (smallest x1) — filtering by score first
+            # avoids picking a low-confidence spurious detection (e.g. a
+            # label/marker in the image) just because it happens to sit
+            # further left than the real hand. If nothing clears the
+            # threshold, fall back to the single top-scoring detection
+            # (predictions are already sorted by descending score).
             if args.mode == 'full' and len(pred['boxes']) > 1:
-                x1_coords = pred['boxes'][:, 0].cpu().numpy()
-                best_idx  = int(x1_coords.argmin())
+                scores_np = pred['scores'].cpu().numpy()
+                keep = np.where(scores_np > LEFT_HAND_SCORE_THRESHOLD)[0]
+                if len(keep) == 0:
+                    best_idx = 0
+                else:
+                    x1_coords = pred['boxes'][keep, 0].cpu().numpy()
+                    best_idx  = int(keep[x1_coords.argmin()])
             else:
                 best_idx = 0
 
