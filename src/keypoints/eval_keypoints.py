@@ -111,17 +111,24 @@ def main():
     parser.add_argument('--mode',  type=str, default='full',
                         choices=['full', 'gt_crop', 'det_crop'],
                         help='full: whole image | gt_crop: crop with gt bbox | det_crop: crop with predicted bbox')
+    parser.add_argument('--full-dataset', action='store_true',
+                        help='evaluate the checkpoint trained on the full dataset '
+                             '(keypointrcnn_rhpe_<model>_fulldata.pth) instead of '
+                             'the stratified 250/50 subset')
     parser.add_argument('--visualize', action='store_true')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device} | Split: {args.split} | Model: {args.model} | Mode: {args.mode} | Visualize: {args.visualize}")
+    print(f"Device: {device} | Split: {args.split} | Model: {args.model} | Mode: {args.mode} | "
+          f"Full dataset: {args.full_dataset} | Visualize: {args.visualize}")
 
     config  = SPLIT_CONFIG[args.split]
     dataset = RHPEKeypointEvalDataset(config['image_dir'], config['json_path'])
 
-    # Load keypoint model — checkpoint depends on how it was trained (--model)
-    kpt_checkpoint = f"{KPT_CHECKPOINT_DIR}/keypointrcnn_rhpe_{args.model}.pth"
+    # Load keypoint model — checkpoint depends on how it was trained (--model,
+    # plus whether it was trained on the full dataset or the 250/50 subset)
+    suffix         = "_fulldata" if args.full_dataset else ""
+    kpt_checkpoint = f"{KPT_CHECKPOINT_DIR}/keypointrcnn_rhpe_{args.model}{suffix}.pth"
     kpt_model = get_kpt_model().to(device)
     kpt_model.load_state_dict(torch.load(kpt_checkpoint, map_location=device, weights_only=True))
     kpt_model.eval()
@@ -135,7 +142,7 @@ def main():
         det_model.eval()
         print("Detection model loaded successfully")
 
-    output_dir = f"/data01/giacomelli/experiments/keypoints/logs/{args.split}/model_{args.model}_mode_{args.mode}"
+    output_dir = f"/data01/giacomelli/experiments/keypoints/logs/{args.split}/model_{args.model}{suffix}_mode_{args.mode}"
     os.makedirs(output_dir, exist_ok=True)
 
     to_tensor   = T.ToTensor()
@@ -250,7 +257,7 @@ def main():
     print(f"mAR@[.5:.95]: {stats[5]:.4f}")
 
     all_metrics_path = "/data01/giacomelli/experiments/keypoints/logs/all_metrics.json"
-    key = f"{args.split}_{args.model}_{args.mode}"
+    key = f"{args.split}_{args.model}{suffix}_{args.mode}"
 
     if os.path.exists(all_metrics_path):
         with open(all_metrics_path) as f:
@@ -262,6 +269,7 @@ def main():
         "split":         args.split,
         "model":         args.model,
         "mode":          args.mode,
+        "full_dataset":  args.full_dataset,
         "map_50_95":     round(float(stats[0]), 4),
         "map_50":        round(float(stats[1]), 4),
         "map_75":        round(float(stats[2]), 4),
