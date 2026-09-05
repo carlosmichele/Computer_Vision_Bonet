@@ -201,6 +201,18 @@ stadio, l'immagine ritagliata attorno alla mano e una mappa costruita a
 partire dai keypoint vengono combinate insieme all'informazione sul
 genere del paziente per produrre la stima finale.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figure/pipeline_bonet.png}
+\caption{Schema della pipeline BoNet: l'immagine di partenza attraversa
+hand detection e hand pose estimation per individuare le regioni
+anatomiche di interesse; il crop della mano, la mappa costruita a partire
+dai keypoint e il genere del paziente costituiscono poi l'input dello
+stadio di bone age assessment. Figura tratta da Escobar et
+al.~\cite{escobar2019bonet}.}
+\label{fig:pipeline_bonet}
+\end{figure}
+
 Gli autori mostrano che questo approccio, basato su informazione locale,
 supera nettamente le prestazioni di un modello che analizza solo
 l'immagine intera.
@@ -300,11 +312,12 @@ soglia di confidenza cambiano sia la precisione (quale frazione delle
 predizioni accettate è corretta) sia il richiamo (quale frazione degli
 oggetti reali viene individuata), tracciando una curva
 precisione-richiamo. L'area sottesa a questa curva è l'\emph{Average
-Precision} (AP) per una classe; mediando le AP su tutte le classi si
-ottiene la mean Average Precision (mAP) e, allo stesso modo, la mean
-Average Recall (mAR). Nei task di questo lavoro esiste una sola classe
-di primo piano (la mano), per cui la mAP coincide numericamente con
-l'AP.
+Precision} (AP) per una classe.
+
+Mediando le AP su tutte le classi si ottiene la mean Average Precision
+(mAP) e, allo stesso modo, la mean Average Recall (mAR). Nei task di
+questo lavoro esiste una sola classe di primo piano (la mano), per cui
+la mAP coincide numericamente con l'AP.
 
 La notazione mAP@.50 indica l'AP calcolata con un'unica soglia IoU pari
 a 0.5; mAP@[.5:.95] indica invece che l'AP viene calcolata su dieci
