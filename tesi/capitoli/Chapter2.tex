@@ -234,6 +234,29 @@ non sulle coordinate continue ma sulla posizione discretizzata di
 ciascun keypoint in un'heatmap), e la somma delle cinque costituisce la
 loss totale su cui viene calcolato il gradiente.
 
+Il criterio di selezione del checkpoint migliore segue inizialmente la
+stessa logica della hand detection (Sez.~\ref{sec:hand_detection}): si
+salvano i pesi del modello quando la mAP@[.5:.95] sul validation set
+migliora rispetto al massimo osservato fino a quel momento. Per le
+varianti \texttt{gt\_crop} e \texttt{mirrored} questo criterio si è però
+rivelato poco informativo: il target di bounding box coincide sempre con
+l'intero crop (\texttt{[0, 0, w, h]}, Sez.~\ref{sec:varianti_modello}),
+quindi la componente di detection della mAP satura rapidamente e smette
+di distinguere tra epoche successive, mentre la qualità della stima dei
+keypoint, la parte del task che qui interessa davvero, continua a
+variare in modo non catturato dalla metrica. Si è quindi adottato un
+criterio basato sulla loss di validazione complessiva, la somma delle
+cinque componenti descritte sopra (calcolata senza aggiornare i pesi,
+tramite un passaggio in avanti in modalità di addestramento), che
+include esplicitamente il contributo dei keypoint ed è una pratica
+comune per la selezione del modello durante il
+training~\cite{goodfellow2016deep}. Il nuovo criterio è stato adottato a
+partire dal retraining di \texttt{gt\_crop} sul dataset completo
+(Capitolo~\ref{chap:risultati}); i risultati sul sottoinsieme da 250
+immagini riportati in Tabella~\ref{tab:risultati_keypoint_completo}, per
+tutte e quattro le varianti, restano invece selezionati con il criterio
+precedente basato sulla mAP.
+
 \subsection{Estensione alla mano destra tramite mirroring}
 \label{sec:mirroring}
 
