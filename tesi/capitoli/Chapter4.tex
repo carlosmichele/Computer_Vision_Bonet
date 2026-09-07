@@ -52,12 +52,14 @@ soggetto ad almeno due differenze non isolate in questo lavoro.
 La prima è architetturale: BoNet utilizza Simple Baselines for Human
 Pose Estimation~\cite{xiao2018simplebaselines}, mentre questo lavoro
 utilizza Keypoint R-CNN~\cite{he2017maskrcnn}. Un divario di prestazioni
-tra le due architetture è documentato indipendentemente in letteratura,
-su un compito diverso (human pose estimation su COCO, non mani
-radiografiche): Simple Baselines con backbone ResNet-50 raggiunge un AP
-di 70.4 su COCO val2017~\cite{xiao2018simplebaselines}, mentre Mask
-R-CNN con lo stesso backbone (ResNet-50-FPN), da cui deriva Keypoint
-R-CNN, raggiunge un AP di 62.7 su COCO
+tra le due architetture è documentato indipendentemente sul benchmark
+standard della pose estimation, il task di keypoint detection del
+dataset COCO~\cite{lin2014coco} (un compito diverso, la posa umana su
+fotografie anziché mani radiografiche, ma quello su cui entrambi i paper
+riportano i propri risultati): Simple Baselines con backbone ResNet-50
+raggiunge un AP di 70.4 su COCO val2017~\cite{xiao2018simplebaselines},
+mentre Mask R-CNN con lo stesso backbone (ResNet-50-FPN), da cui deriva
+Keypoint R-CNN, raggiunge un AP di 62.7 su COCO
 test-dev~\cite{he2017maskrcnn} (le due valutazioni usano split diversi
 del dataset, quindi il confronto numerico esatto va preso con cautela,
 ma la direzione e l'ordine di grandezza del divario, 7-8 punti, sono
