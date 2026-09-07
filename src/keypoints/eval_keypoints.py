@@ -115,19 +115,25 @@ def main():
                         help='evaluate the checkpoint trained on the full dataset '
                              '(keypointrcnn_rhpe_<model>_fulldata.pth) instead of '
                              'the stratified 250/50 subset')
+    parser.add_argument('--tag', type=str, default='',
+                        help='extra suffix identifying the checkpoint to load, '
+                             'matching the --tag passed to train_keypoints.py '
+                             '(e.g. --tag aug)')
     parser.add_argument('--visualize', action='store_true')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Device: {device} | Split: {args.split} | Model: {args.model} | Mode: {args.mode} | "
-          f"Full dataset: {args.full_dataset} | Visualize: {args.visualize}")
+          f"Full dataset: {args.full_dataset} | Tag: {args.tag!r} | Visualize: {args.visualize}")
 
     config  = SPLIT_CONFIG[args.split]
     dataset = RHPEKeypointEvalDataset(config['image_dir'], config['json_path'])
 
     # Load keypoint model — checkpoint depends on how it was trained (--model,
-    # plus whether it was trained on the full dataset or the 250/50 subset)
+    # plus whether it was trained on the full dataset or the 250/50 subset,
+    # plus any --tag used to distinguish variant runs like augmentation)
     suffix         = "_fulldata" if args.full_dataset else ""
+    suffix        += f"_{args.tag}" if args.tag else ""
     kpt_checkpoint = f"{KPT_CHECKPOINT_DIR}/keypointrcnn_rhpe_{args.model}{suffix}.pth"
     kpt_model = get_kpt_model().to(device)
     kpt_model.load_state_dict(torch.load(kpt_checkpoint, map_location=device, weights_only=True))
