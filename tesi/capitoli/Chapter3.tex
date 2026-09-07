@@ -56,7 +56,7 @@ sigma OKS reali del paper (Tabella~\ref{tab:sigma_oks}).
 \toprule
 Split & Model & Mode & mAP@[.5:.95] & mAP@.50 & mAP@.75 & mAR@[.5:.95] \\
 \midrule
-Test & full & full & 0.6918 & 0.9702 & 0.8955 & 0.7380 \\
+Test & full & full & 0.6986 & 0.9702 & 0.9061 & 0.7456 \\
 Test & full & gt\_crop & 0.5153 & 0.8113 & 0.5550 & 0.5608 \\
 Test & full & det\_crop & 0.5407 & 0.8964 & 0.5887 & 0.5937 \\
 Test & gt\_crop & full & 0.0856 & 0.2446 & 0.0484 & 0.1013 \\
@@ -65,7 +65,7 @@ Test & gt\_crop & det\_crop & 0.7205 & 0.9713 & 0.9472 & 0.7620 \\
 Test & mirrored & full & 0.0619 & 0.1461 & 0.0235 & 0.0886 \\
 Test & mirrored & gt\_crop & 0.6404 & 0.9527 & 0.8030 & 0.6924 \\
 Test & mirrored & det\_crop & 0.6433 & 0.9662 & 0.8240 & 0.6924 \\
-Test & mirrored\_full & full & 0.6759 & 0.9307 & 0.8888 & 0.7329 \\
+Test & mirrored\_full & full & 0.7004 & 0.9702 & 0.9183 & 0.7582 \\
 Test & mirrored\_full & gt\_crop & 0.5267 & 0.9291 & 0.5707 & 0.5772 \\
 Test & mirrored\_full & det\_crop & 0.5606 & 0.9322 & 0.6470 & 0.6089 \\
 \bottomrule
@@ -94,15 +94,17 @@ disponibili non permettono però di isolare quanto di questo vantaggio
 derivi dallo specchiamento in sé e quanto dal semplice raddoppio dei
 dati di training che esso comporta.
 
-Infine, questo comportamento più equilibrato ha un costo: nel proprio
-dominio nativo \texttt{mirrored\_full} non raggiunge le prestazioni di
-picco di \texttt{gt\_crop} e \texttt{mirrored} (rispettivamente 0.704 e
-0.640 in modalità \texttt{gt\_crop}, contro 0.676 di
-\texttt{mirrored\_full} in modalità \texttt{full}). Le varianti allenate
-su crop restano quindi preferibili quando è disponibile una bounding box
-di alta qualità a monte; \texttt{mirrored\_full} resta però l'unica in
-grado di funzionare direttamente sull'immagine intera, senza fasi di
-localizzazione separate.
+Infine, questo comportamento più equilibrato comporta ormai un costo
+marginale: nel proprio dominio nativo \texttt{mirrored\_full} raggiunge
+un mAP@[.5:.95] di 0.700, quasi allo stesso livello del picco di
+\texttt{gt\_crop} (0.704) e nettamente superiore a quello di
+\texttt{mirrored} (0.640) in modalità \texttt{gt\_crop}. Le varianti
+allenate su crop restano leggermente più precise quando è disponibile
+una bounding box di alta qualità a monte, ma il divario si è ridotto a
+pochi millesimi; \texttt{mirrored\_full} resta inoltre l'unica in grado
+di funzionare direttamente sull'immagine intera, gestendo entrambe le
+mani in un unico passaggio, senza necessitare di una fase di
+localizzazione separata.
 
 Confrontando con il paper BoNet~\cite{escobar2019bonet} (mAP@[.5:.95]
 $=$ 0.814 con bounding box ground truth sul dataset RHPE, sull'intero
