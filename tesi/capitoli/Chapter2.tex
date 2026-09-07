@@ -220,6 +220,28 @@ quindi optato per SGD con iperparametri standard per questa famiglia di
 modelli (learning rate $5\times10^{-3}$, momentum 0.9, weight decay
 $5\times10^{-4}$), mantenendo le 20 epoche indicate dal paper.
 
+Durante l'analisi del confronto con BoNet (Capitolo~\ref{chap:discussione})
+è emerso che il paper di Simple Baselines specifica, oltre ai parametri
+di ottimizzazione già discussi, anche uno schema di data augmentation
+applicato in training: rotazione casuale (±40°), scala casuale (±30\%) e
+flip orizzontale. Il codice di questo lavoro non applicava alcuna
+augmentation stocastica per immagine; il flip presente nelle varianti
+\texttt{mirrored}/\texttt{mirrored\_full} è deterministico e a livello
+di dataset (una copia specchiata aggiunta per ogni campione,
+Sez.~\ref{sec:mirroring}), pensato per generare dati di training per la
+mano destra, non come tecnica di regolarizzazione per la sinistra. Si è
+quindi aggiunta la stessa rotazione/scala casuale usata da Simple
+Baselines, applicata all'immagine intera e alle relative coordinate di
+bounding box e keypoint prima di qualsiasi elaborazione specifica della
+modalità (crop, mirroring), e solo al training set, non alla
+validazione. Il flip non è stato incluso: applicarlo a \texttt{gt\_crop}
+richiederebbe che il modello imparasse a riconoscere anche
+l'orientamento speculare della mano, snaturando la variante e
+avvicinandola concettualmente a \texttt{mirrored}. Questa augmentation è
+stata introdotta successivamente al retraining di \texttt{gt\_crop} sul
+dataset completo descritto sopra; i risultati che ne fanno uso sono
+indicati esplicitamente nel Capitolo~\ref{chap:risultati}.
+
 \subsection{Ciclo di addestramento}
 
 Rispetto alla hand detection, il target di ciascuna immagine include
