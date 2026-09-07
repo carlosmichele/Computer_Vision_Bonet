@@ -132,6 +132,74 @@ sinistra), \texttt{gt\_crop}/\texttt{gt\_crop} (in alto a destra),
 \label{fig:esempi_keypoint}
 \end{figure}
 
+\subsection{Retraining di \texttt{gt\_crop} sul dataset completo}
+\label{sec:retraining_gt_crop_full}
+
+Poiché \texttt{gt\_crop} è la variante che più fedelmente replica la
+metodologia di BoNet (Sez.~\ref{sec:varianti_modello}), è stata
+riallenata sull'intero training set RHPE (5.492 immagini, contro le 250
+del sottoinsieme stratificato), utilizzando il criterio di validazione
+basato sulla loss descritto in Sez.~\ref{sec:keypoint_estimation}. Una
+seconda versione è stata inoltre allenata con la data augmentation
+descritta nella stessa sezione (rotazione e scala casuali). I risultati
+sul test set sono riportati in
+Tabella~\ref{tab:risultati_gt_crop_fulldata}.
+
+\begin{table}[H]
+\centering
+\caption{Risultati di \texttt{gt\_crop} riallenato sul dataset completo,
+con e senza data augmentation. Confronto diretto con le righe
+\texttt{gt\_crop} di Tabella~\ref{tab:risultati_keypoint_completo}
+(sottoinsieme da 250 immagini).}
+\label{tab:risultati_gt_crop_fulldata}
+\smallskip
+\small
+\begin{tabular}{lccccc}
+\toprule
+Mode & Augmentation & mAP@[.5:.95] & mAP@.50 & mAP@.75 & mAR@[.5:.95] \\
+\midrule
+full      & no & 0.1043 & 0.2365 & 0.0847 & 0.1595 \\
+full      & sì & 0.4017 & 0.7233 & 0.4017 & 0.4570 \\
+gt\_crop  & no & 0.7508 & 0.9587 & 0.9484 & 0.7937 \\
+gt\_crop  & sì & 0.7699 & 0.9690 & 0.9563 & 0.8013 \\
+det\_crop & no & 0.7330 & 0.9685 & 0.9553 & 0.7899 \\
+det\_crop & sì & 0.7913 & 0.9741 & 0.9616 & 0.8278 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Rispetto al sottoinsieme da 250 immagini
+(Tabella~\ref{tab:risultati_keypoint_completo}), l'addestramento sul
+dataset completo migliora le prestazioni ma non in modo decisivo:
+mAP@[.5:.95] passa da 0.7037 a 0.7508 in modalità \texttt{gt\_crop}
+(+0.047) e da 0.7205 a 0.7330 in modalità \texttt{det\_crop} (+0.013).
+Il pattern è interessante: mAP@.50 non migliora, mentre mAP@.75 e
+mAR@[.5:.95] migliorano in entrambe le modalità. Il modello, già con 250
+immagini, aveva imparato a localizzare i keypoint approssimativamente
+nella posizione corretta quasi sempre; il margine di miglioramento con
+più dati si colloca sulla precisione fine, non sulla capacità di evitare
+errori grossolani.
+
+L'aggiunta della data augmentation produce un miglioramento ulteriore,
+non uniforme tra le modalità: marginale nel dominio nativo del modello
+(\texttt{gt\_crop}: +0.019), più marcato quando l'input si discosta
+dalle condizioni di training (\texttt{det\_crop}: +0.058; \texttt{full}:
++0.297 in termini relativi, pur restando un valore assoluto basso).
+Questo è coerente con l'effetto atteso della rotazione/scala casuale:
+rende il modello più robusto a bounding box imperfette o a contesti
+diversi da quello visto in training.
+
+Con la combinazione dataset completo e augmentation, il divario rispetto
+al valore riportato da BoNet per RHPE con bounding box ground truth
+(mAP@[.5:.95] = 0.814) si riduce da 0.063 a 0.044 (\texttt{gt\_crop} in
+modalità \texttt{gt\_crop}: 0.7699). Il confronto approfondito con
+questo valore è discusso nel Capitolo~\ref{chap:discussione}.
+
+Le altre tre varianti (\texttt{full}, \texttt{mirrored},
+\texttt{mirrored\_full}) non sono state riallenate sul dataset completo;
+i valori corrispondenti in Tabella~\ref{tab:risultati_keypoint_completo}
+restano quindi quelli ottenuti sul sottoinsieme.
+
 \section{Esplorazione su entrambe le mani: risultati}
 \label{sec:esplorazione_dx}
 
