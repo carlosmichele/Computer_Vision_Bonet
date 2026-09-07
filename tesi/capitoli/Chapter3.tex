@@ -185,9 +185,22 @@ non uniforme tra le modalità: marginale nel dominio nativo del modello
 (\texttt{gt\_crop}: +0.019), più marcato quando l'input si discosta
 dalle condizioni di training (\texttt{det\_crop}: +0.058; \texttt{full}:
 +0.297 in termini relativi, pur restando un valore assoluto basso).
-Questo è coerente con l'effetto atteso della rotazione/scala casuale:
-rende il modello più robusto a bounding box imperfette o a contesti
-diversi da quello visto in training.
+La spiegazione è geometrica: quando la rotazione casuale
+(Sez.~\ref{sec:keypoint_estimation}) ruota il box ground truth, il
+nuovo box assiale usato per il crop, il più piccolo rettangolo dritto
+che contiene i quattro angoli ruotati, è per costruzione più grande del
+box di partenza (tranne che per rotazioni di 0°, 90°, 180°...),
+aggiungendo quindi margine ulteriore rispetto a quello già presente
+nell'annotazione originale, quale che sia la sua aderenza alla mano; la
+componente di scala, al contrario, moltiplica tutte le coordinate per
+lo stesso fattore e non altera il margine relativo del crop. Il modello
+si allena quindi, per effetto della sola rotazione, su crop
+sistematicamente più larghi rispetto all'annotazione di partenza, una
+condizione più vicina a quella di un box predetto da un detector, in
+genere meno preciso di un'annotazione manuale: il beneficio
+dell'augmentation si osserva perciò più chiaramente in modalità
+\texttt{det\_crop}, dove questo tipo di margine è già presente
+indipendentemente dall'augmentation stessa.
 
 Con la combinazione dataset completo e augmentation, il divario rispetto
 al valore riportato da BoNet per RHPE con bounding box ground truth

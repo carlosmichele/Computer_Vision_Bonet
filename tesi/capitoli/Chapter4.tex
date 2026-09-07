@@ -2,7 +2,91 @@
 \label{chap:discussione}
 
 \section{Confronto con il paper di riferimento}
-% TODO
+
+Il paper BoNet~\cite{escobar2019bonet} riporta, per la keypoint
+estimation sul dataset RHPE, un mAP@[.5:.95] di 0.814 con bounding box
+ground truth e di 0.808 con bounding box predetta. I risultati più
+direttamente confrontabili ottenuti in questo lavoro, con
+\texttt{gt\_crop} riallenato sul dataset completo e con data
+augmentation (Sez.~\ref{sec:retraining_gt_crop_full}), sono
+rispettivamente 0.7699 in modalità \texttt{gt\_crop} (divario 0.044) e
+0.7913 in modalità \texttt{det\_crop} (divario 0.017); quest'ultimo
+valore supera il primo per un motivo già discusso in
+Sez.~\ref{sec:retraining_gt_crop_full} (l'augmentation avvantaggia in
+modo particolare gli input con un margine maggiore attorno alla mano),
+non per un effetto isolato o casuale. Interpretare questi divari richiede
+comunque di considerare più fattori, discussi di seguito.
+
+\subsection{Affidabilità del valore di riferimento}
+\label{sec:affidabilita_bonet}
+
+Un'analisi diretta della Tabella 2 del paper BoNet solleva un dubbio
+sull'affidabilità del valore 0.814 come target specifico per RHPE. La
+tabella riporta i risultati di hand pose estimation separatamente per
+RSNA e RHPE, in tre condizioni (immagine intera, crop con bounding box
+ground truth, crop con bounding box predetta). Mentre la riga
+``immagine intera'' differisce sensibilmente tra i due dataset (73.0\%
+RSNA contro 53.1\% RHPE, coerentemente con il fatto che le immagini
+RHPE, a differenza di quelle RSNA, includono entrambe le mani e altri
+elementi come etichette identificative), le righe ``bounding box ground
+truth'' e ``bounding box predetta'' riportano valori identici, cifra
+per cifra, tra i due dataset su tutte e quattro le metriche. Questa
+coincidenza esatta su due righe, a fronte di una terza che differisce in
+modo plausibile, è compatibile con un errore di copia nella tabella del
+paper originale, più che con un risultato genuino. Non è stato possibile
+risolvere il dubbio: il materiale supplementare del paper non riporta
+una tabella alternativa, il repository ufficiale del
+codice\footnote{\url{https://github.com/BCV-Uniandes/Bonet}} include
+solo l'implementazione del terzo stadio (bone age assessment), non
+della hand detection o della hand pose estimation, e nessun lavoro
+successivo che cita questo valore lo riporta in modo indipendente. Il
+valore 0.814 va quindi trattato con cautela, non come un target
+RHPE-specifico verificato con certezza.
+
+\subsection{Differenze architetturali e di training}
+\label{sec:differenze_architetturali_bonet}
+
+Anche assumendo che 0.814 sia un valore affidabile, il confronto resta
+soggetto ad almeno due differenze non isolate in questo lavoro.
+
+La prima è architetturale: BoNet utilizza Simple Baselines for Human
+Pose Estimation~\cite{xiao2018simplebaselines}, mentre questo lavoro
+utilizza Keypoint R-CNN~\cite{he2017maskrcnn}. Un divario di prestazioni
+tra le due architetture è documentato indipendentemente in letteratura,
+su un compito diverso (human pose estimation su COCO, non mani
+radiografiche): Simple Baselines con backbone ResNet-50 raggiunge un AP
+di 70.4 su COCO val2017~\cite{xiao2018simplebaselines}, mentre Mask
+R-CNN con lo stesso backbone (ResNet-50-FPN), da cui deriva Keypoint
+R-CNN, raggiunge un AP di 62.7 su COCO
+test-dev~\cite{he2017maskrcnn} (le due valutazioni usano split diversi
+del dataset, quindi il confronto numerico esatto va preso con cautela,
+ma la direzione e l'ordine di grandezza del divario, 7-8 punti, sono
+coerenti con quanto osservato in questo lavoro). La spiegazione
+tipicamente proposta è che Simple Baselines opera su un crop già
+ritagliato ad alta risoluzione con un decoder a deconvoluzione dedicato,
+mentre Keypoint R-CNN predice i keypoint da una feature map ottenuta
+tramite RoIAlign, storicamente meno precisa per la localizzazione fine.
+
+La seconda è una discrepanza nella ricetta di training, mai isolata
+prima d'ora. Il paper BoNet indica, per la keypoint estimation, solo il
+numero di epoche (20) e l'uso dei ``parametri suggeriti'' da Simple
+Baselines: ottimizzatore Adam, learning rate $10^{-3}$, batch size 128.
+Poiché Keypoint R-CNN appartiene alla famiglia Faster R-CNN,
+tradizionalmente addestrata con SGD, questo lavoro ha ereditato da
+BoNet solo il numero di epoche, non il resto della ricetta:
+l'addestramento usa SGD con batch size 4, un numero di aggiornamenti dei
+pesi per epoca circa 32 volte più alto a parità di epoche nominali. ``20
+epoche'' non rappresenta quindi lo stesso volume di addestramento nei
+due casi.
+
+L'introduzione della data augmentation descritta in
+Sez.~\ref{sec:keypoint_estimation}, motivata proprio da questo
+confronto, ha permesso di ridurre il divario da 0.063 a 0.044 (modalità
+\texttt{gt\_crop}) senza modificare l'architettura né la ricetta di
+ottimizzazione. Questo è compatibile con l'idea che il divario residuo
+derivi da una combinazione delle due differenze appena descritte,
+sebbene isolarne il contributo relativo richiederebbe esperimenti
+dedicati, che restano fuori dallo scope di questo lavoro.
 
 \section{Osservazioni metodologiche}
 
