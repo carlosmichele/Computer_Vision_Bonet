@@ -1,5 +1,6 @@
 import os
 import sys
+import math
 import random
 import argparse
 import numpy as np
@@ -21,6 +22,71 @@ NUM_KEYPOINTS = 17
 
 random.seed(SEED)
 torch.manual_seed(SEED)
+
+# ── Augmentation ────────────────────────────────────────────────────────────
+# Matches the augmentation used by Simple Baselines for Human Pose Estimation
+# (Xiao et al. 2018) to train the architecture BoNet actually uses for this
+# stage: random rotation (+-40 deg) and scale (+-30%). We apply it to the
+# full image before any mode-specific crop/mirroring, so it works the same
+# way regardless of --mode.
+ROTATION_RANGE_DEG = 40
+SCALE_RANGE         = 0.3
+
+def random_rotate_scale(img, x, y, w, h, keypoints):
+    """Rotate and rescale the image (and the bbox/keypoints along with it)
+    around the image center by a random angle/factor. Returns the new PIL
+    image, bbox coordinates and keypoints tensor (modified in place)."""
+    img_w, img_h = img.size
+    cx, cy = img_w / 2.0, img_h / 2.0
+
+    angle = random.uniform(-ROTATION_RANGE_DEG, ROTATION_RANGE_DEG)
+    scale = random.uniform(1 - SCALE_RANGE, 1 + SCALE_RANGE)
+
+    # Rotate about the image center, canvas size unchanged.
+    img = img.rotate(angle, resample=Image.BICUBIC, center=(cx, cy), fillcolor=0)
+
+    # Matches PIL's own rotate() convention exactly (verified against its
+    # implementation), so points move consistently with the pixels.
+    angle_rad     = math.radians(angle)
+    cos_a, sin_a  = math.cos(angle_rad), math.sin(angle_rad)
+
+    def rotate_point(px, py):
+        dx, dy = px - cx, py - cy
+        return (cx + cos_a * dx + sin_a * dy,
+                cy - sin_a * dx + cos_a * dy)
+
+    # Rotate the 4 bbox corners and take their axis-aligned bounding box,
+    # since boxes and torchvision's loss expect axis-aligned coordinates.
+    corners     = [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]
+    rot_corners = [rotate_point(px, py) for px, py in corners]
+    xs = [p[0] for p in rot_corners]
+    ys = [p[1] for p in rot_corners]
+    x, y = min(xs), min(ys)
+    w, h = max(xs) - x, max(ys) - y
+
+    for k in range(keypoints.shape[1]):
+        nx, ny = rotate_point(keypoints[0, k, 0].item(), keypoints[0, k, 1].item())
+        keypoints[0, k, 0] = nx
+        keypoints[0, k, 1] = ny
+
+    # Scale by resizing the whole image and scaling coordinates by the same
+    # factor (both anchored at the origin, so a plain multiplication suffices).
+    new_size = (max(1, round(img_w * scale)), max(1, round(img_h * scale)))
+    img = img.resize(new_size, Image.BICUBIC)
+
+    x, y, w, h = x * scale, y * scale, w * scale, h * scale
+    keypoints[0, :, 0] *= scale
+    keypoints[0, :, 1] *= scale
+
+    # Clip the bbox to the (possibly resized) image bounds — rotation can
+    # push corners outside the canvas, and torchvision expects valid,
+    # in-bounds ground-truth boxes.
+    new_w, new_h = new_size
+    x0, y0 = min(max(x, 0.0), new_w), min(max(y, 0.0), new_h)
+    x1, y1 = min(max(x + w, 0.0), new_w), min(max(y + h, 0.0), new_h)
+    x, y, w, h = x0, y0, max(1.0, x1 - x0), max(1.0, y1 - y0)
+
+    return img, x, y, w, h, keypoints
 
 # ── Dataset ───────────────────────────────────────────────────────────────
 class RHPEKeypointDataset(Dataset):
@@ -46,10 +112,11 @@ class RHPEKeypointDataset(Dataset):
                       unlike 'mirrored' which only ever sees tight crops.
     """
     def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann,
-                 mode='full', transforms=None):
+                 mode='full', transforms=None, augment=False):
         self.image_dir  = image_dir
         self.transforms = transforms
         self.mode       = mode
+        self.augment    = augment  # random rotation/scale, training only
         self.samples    = []  # list of (fname, ann, flip: bool)
 
         base_samples = match_samples(sampled_ids, id_to_file, id_to_ann)
@@ -74,6 +141,9 @@ class RHPEKeypointDataset(Dataset):
         x, y, w, h = ann['bbox']
         kps       = ann['keypoints']
         keypoints = torch.tensor(kps, dtype=torch.float32).reshape(1, NUM_KEYPOINTS, 3)
+
+        if self.augment:
+            img, x, y, w, h, keypoints = random_rotate_scale(img, x, y, w, h, keypoints)
 
         if self.mode in ('gt_crop', 'mirrored'):
             img = img.crop((x, y, x + w, y + h))
@@ -135,6 +205,10 @@ def main():
     parser.add_argument('--full-dataset', action='store_true',
                         help='use the entire train/val split instead of the '
                              'stratified 250/50 subset')
+    parser.add_argument('--tag', type=str, default='',
+                        help='extra suffix appended to the checkpoint filename, '
+                             'to avoid overwriting a previous run under the same '
+                             '--mode/--full-dataset (e.g. --tag aug)')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -166,10 +240,10 @@ def main():
     # Datasets and DataLoaders
     train_dataset = RHPEKeypointDataset(
         f"{BASE}/RHPE_train", train_ids, id_to_file_train, id_to_ann_train,
-        mode=args.mode, transforms=transform)
+        mode=args.mode, transforms=transform, augment=True)
     val_dataset = RHPEKeypointDataset(
         f"{BASE}/RHPE_val", val_ids, id_to_file_val, id_to_ann_val,
-        mode=args.mode, transforms=transform)
+        mode=args.mode, transforms=transform, augment=False)
 
     train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True,
                               num_workers=4, pin_memory=True,
@@ -187,6 +261,7 @@ def main():
     num_epochs = 20
 
     suffix    = "_fulldata" if args.full_dataset else ""
+    suffix   += f"_{args.tag}" if args.tag else ""
     save_path = f"/data01/giacomelli/experiments/keypoints/checkpoints/keypointrcnn_rhpe_{args.mode}{suffix}.pth"
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
 
