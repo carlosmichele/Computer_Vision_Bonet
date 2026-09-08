@@ -116,7 +116,10 @@ sia della significativa riduzione del dataset di training, sia
 dell'architettura diversa adottata per la keypoint estimation
 (Keypoint R-CNN anziché Simple Baselines,
 Sez.~\ref{sec:keypoint_estimation}): non si tratta quindi di un
-confronto perfettamente controllato.
+confronto perfettamente controllato. Il ruolo della sola dimensione del
+dataset viene isolato più avanti in questa sezione, riallenando
+\texttt{gt\_crop} sul dataset completo
+(Sez.~\ref{sec:retraining_gt_crop_full}).
 
 \begin{figure}[htbp]
 \centering
@@ -137,7 +140,7 @@ sinistra), \texttt{gt\_crop}/\texttt{gt\_crop} (in alto a destra),
 
 Poiché \texttt{gt\_crop} è la variante che più fedelmente replica la
 metodologia di BoNet (Sez.~\ref{sec:varianti_modello}), è stata
-riallenata sull'intero training set RHPE (5.492 immagini, contro le 250
+riallenata sull'intero training set RHPE (5491 immagini, contro le 250
 del sottoinsieme stratificato), utilizzando il criterio di validazione
 basato sulla loss descritto in Sez.~\ref{sec:keypoint_estimation}. Una
 seconda versione è stata inoltre allenata con la data augmentation
