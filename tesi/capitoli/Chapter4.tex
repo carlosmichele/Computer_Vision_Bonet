@@ -5,17 +5,42 @@
 
 Il paper BoNet~\cite{escobar2019bonet} riporta, per la keypoint
 estimation sul dataset RHPE, un mAP@[.5:.95] di 0.814 con bounding box
-ground truth e di 0.808 con bounding box predetta. I risultati più
-direttamente confrontabili ottenuti in questo lavoro, con
-\texttt{gt\_crop} riallenato sul dataset completo e con data
-augmentation (Sez.~\ref{sec:retraining_gt_crop_full}), sono
-rispettivamente 0.7699 in modalità \texttt{gt\_crop} (divario 0.044) e
-0.7913 in modalità \texttt{det\_crop} (divario 0.017); quest'ultimo
-valore supera il primo per un motivo già discusso in
+ground truth e di 0.808 con bounding box predetta. La
+Tabella~\ref{tab:confronto_bonet} confronta questi valori con i
+risultati ottenuti in questo lavoro, sia sul sottoinsieme da 250
+immagini sia con \texttt{gt\_crop} riallenato sul dataset completo con
+data augmentation (Sez.~\ref{sec:retraining_gt_crop_full}).
+
+\begin{table}[H]
+\centering
+\caption{Confronto tra i valori di BoNet e i risultati di questo lavoro
+(modello sempre \texttt{gt\_crop}, Sez.~\ref{sec:retraining_gt_crop_full});
+\texttt{gt\_crop}/\texttt{det\_crop} in tabella indicano qui la
+modalità di valutazione.}
+\label{tab:confronto_bonet}
+\smallskip
+\small
+\begin{tabular}{llcc}
+\toprule
+Fonte & Condizione & mAP@[.5:.95] & Divario \\
+\midrule
+BoNet & bbox ground truth & 0.814 & \\
+\texttt{gt\_crop} & sottoinsieme & 0.7037 & 0.110 \\
+\texttt{gt\_crop} & dataset completo + aug & 0.7699 & 0.044 \\
+\midrule
+BoNet & bbox predetta & 0.808 & \\
+\texttt{det\_crop} & sottoinsieme & 0.7205 & 0.088 \\
+\texttt{det\_crop} & dataset completo + aug & 0.7913 & 0.017 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Il valore in modalità \texttt{det\_crop} supera quello in modalità
+\texttt{gt\_crop} per un motivo già discusso in
 Sez.~\ref{sec:retraining_gt_crop_full} (l'augmentation avvantaggia in
 modo particolare gli input con un margine maggiore attorno alla mano),
-non per un effetto isolato o casuale. Interpretare questi divari richiede
-comunque di considerare più fattori, discussi di seguito.
+non per un effetto isolato o casuale. Interpretare questi divari
+richiede comunque di considerare più fattori, discussi di seguito.
 
 \subsection{Affidabilità del valore di riferimento}
 \label{sec:affidabilita_bonet}
