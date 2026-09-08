@@ -99,7 +99,14 @@ lavoro, ma un'istanza di un fenomeno più generale: un modello di
 apprendimento supervisionato non impara un compito in astratto, impara
 a risolverlo assumendo implicitamente che i dati futuri seguano la
 stessa distribuzione di quelli visti in addestramento
-(Sez.~\ref{sec:classificazione}). Nel caso di \texttt{gt\_crop} e
+(Sez.~\ref{sec:classificazione}). Più dati e data augmentation
+attenuano parzialmente questo crollo, senza eliminarlo: lo stesso
+\texttt{gt\_crop} valutato in modalità \texttt{full}, riallenato sul
+dataset completo con augmentation, passa da 0.086 a 0.40
+(Sez.~\ref{sec:retraining_gt_crop_full}), un miglioramento reale ma
+ancora lontano dal picco del modello nel proprio dominio (0.77).
+
+Nel caso di \texttt{gt\_crop} e
 \texttt{mirrored}, questa assunzione implicita è particolarmente
 rigida: il target di bounding box è sempre l'intero crop, quindi il
 modello non solo non ha mai visto immagini con sfondo, ma non ha mai
@@ -137,8 +144,9 @@ Keypoint R-CNN, ma una conseguenza diretta di come sono stati
 addestrati. \texttt{mirrored\_full}, addestrato invece sull'intera
 immagine, non ha questo vincolo, ed è l'unica variante in grado di
 funzionare in autonomia end-to-end: un compromesso deliberato tra
-prestazioni di picco, dove \texttt{gt\_crop} e \texttt{mirrored}
-restano superiori nel proprio dominio, e robustezza operativa.
+prestazioni di picco, dove \texttt{mirrored} resta superiore nel
+proprio dominio (\texttt{gt\_crop}, invece, è ormai sostanzialmente
+alla pari, Sez.~\ref{sec:risultati_keypoint}), e robustezza operativa.
 
 \section{Limiti del lavoro}
 
