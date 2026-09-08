@@ -143,10 +143,13 @@ nella modalità \texttt{det\_crop}): non è un limite architetturale di
 Keypoint R-CNN, ma una conseguenza diretta di come sono stati
 addestrati. \texttt{mirrored\_full}, addestrato invece sull'intera
 immagine, non ha questo vincolo, ed è l'unica variante in grado di
-funzionare in autonomia end-to-end: un compromesso deliberato tra
-prestazioni di picco, dove \texttt{mirrored} resta superiore nel
-proprio dominio (\texttt{gt\_crop}, invece, è ormai sostanzialmente
-alla pari, Sez.~\ref{sec:risultati_keypoint}), e robustezza operativa.
+funzionare in autonomia end-to-end: nessuna delle varianti allenate su
+crop lo supera in modo netto nel confronto di picco
+(\texttt{gt\_crop}: 0.704, sostanzialmente alla pari;
+\texttt{mirrored}: 0.640, l'unica a restare visibilmente indietro,
+Sez.~\ref{sec:risultati_keypoint}), quindi il vantaggio in termini di
+robustezza operativa non comporta un sacrificio significativo in
+termini di prestazioni.
 
 \section{Limiti del lavoro}
 
