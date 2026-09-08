@@ -1,9 +1,11 @@
 import os
 import sys
 import math
+import time
 import random
 import argparse
 import numpy as np
+from datetime import datetime
 from PIL import Image, ImageOps
 import torch
 from torchvision import transforms as T
@@ -268,6 +270,7 @@ def main():
     best_val_loss = float('inf')
 
     for epoch in range(num_epochs):
+        epoch_start_time = time.time()
         model.train()
         epoch_train_loss = 0
 
@@ -304,9 +307,13 @@ def main():
 
         avg_val_loss = val_loss_total / len(val_loader)
 
-        print(f"Epoch {epoch+1}/{num_epochs} ── "
+        epoch_duration = time.time() - epoch_start_time
+        timestamp      = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        print(f"[{timestamp}] Epoch {epoch+1}/{num_epochs} ── "
               f"Train Loss: {avg_train_loss:.4f} | "
-              f"Val Loss: {avg_val_loss:.4f}")
+              f"Val Loss: {avg_val_loss:.4f} | "
+              f"Duration: {epoch_duration:.1f}s")
 
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
