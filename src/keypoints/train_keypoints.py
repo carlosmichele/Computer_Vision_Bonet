@@ -114,11 +114,12 @@ class RHPEKeypointDataset(Dataset):
                       unlike 'mirrored' which only ever sees tight crops.
     """
     def __init__(self, image_dir, sampled_ids, id_to_file, id_to_ann,
-                 mode='full', transforms=None, augment=False):
+                 mode='full', transforms=None, augment=False, aug_prob=1.0):
         self.image_dir  = image_dir
         self.transforms = transforms
         self.mode       = mode
-        self.augment    = augment  # random rotation/scale, training only
+        self.augment    = augment    # random rotation/scale, training only
+        self.aug_prob   = aug_prob   # probability of applying it to a given sample
         self.samples    = []  # list of (fname, ann, flip: bool)
 
         base_samples = match_samples(sampled_ids, id_to_file, id_to_ann)
@@ -144,7 +145,7 @@ class RHPEKeypointDataset(Dataset):
         kps       = ann['keypoints']
         keypoints = torch.tensor(kps, dtype=torch.float32).reshape(1, NUM_KEYPOINTS, 3)
 
-        if self.augment:
+        if self.augment and random.random() < self.aug_prob:
             img, x, y, w, h, keypoints = random_rotate_scale(img, x, y, w, h, keypoints)
 
         if self.mode in ('gt_crop', 'mirrored'):
@@ -211,10 +212,14 @@ def main():
                         help='extra suffix appended to the checkpoint filename, '
                              'to avoid overwriting a previous run under the same '
                              '--mode/--full-dataset (e.g. --tag aug)')
+    parser.add_argument('--aug-prob', type=float, default=1.0,
+                        help='probability of applying random_rotate_scale to a given '
+                             'training sample (default 1.0, i.e. always applied). '
+                             '0.0 disables augmentation entirely.')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Device: {device} | Mode: {args.mode}")
+    print(f"Device: {device} | Mode: {args.mode} | Aug prob: {args.aug_prob}")
 
     np.random.seed(SEED)
     if torch.cuda.is_available():
@@ -242,7 +247,7 @@ def main():
     # Datasets and DataLoaders
     train_dataset = RHPEKeypointDataset(
         f"{BASE}/RHPE_train", train_ids, id_to_file_train, id_to_ann_train,
-        mode=args.mode, transforms=transform, augment=True)
+        mode=args.mode, transforms=transform, augment=True, aug_prob=args.aug_prob)
     val_dataset = RHPEKeypointDataset(
         f"{BASE}/RHPE_val", val_ids, id_to_file_val, id_to_ann_val,
         mode=args.mode, transforms=transform, augment=False)
